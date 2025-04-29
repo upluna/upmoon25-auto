@@ -15,7 +15,19 @@ from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
 
+'''
+    Plots optimal paths to a given goal pose using A* and a basic path 
+    simplification algorithm.
 
+    Subscriptions:
+    /map/global_costmap: OccupancyGrid, map uses for path planning
+    /path/goal:          Pose, goal pose
+    odom:                Odometry, used to acquire robot's current position 
+                                   for path planning
+
+    Publishes:
+    /path/path: Path, path to goal pose
+'''
 class PathPlanner(Node):
     def __init__(self):
         super().__init__('path_planner')

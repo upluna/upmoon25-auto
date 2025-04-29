@@ -18,7 +18,9 @@ MIN_RANGE = 0
 INIT_RANGE = 0
 
 SLEEP_TIME = 3.0  # seconds
-
+'''
+    This node's functionality has been moved to arduino_driver
+'''
 class SysfsPWM:
     def __init__(self, pwmchip, channel):
         self.pwmchip = pwmchip

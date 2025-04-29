@@ -30,6 +30,22 @@ class State(Enum):
     FINISHED     = 5 # We have completed the path
     ABORTED      = 6 # We have aborted the path
 
+'''
+    Handles controlling the autonomous motion of the robot. Provides a service, GoTo,
+    which delivers the robot to the target destination. 
+
+    Subscriptions:
+    /path/path: Path, path to the goal provided by path_planner. Dynamically re-plans
+                      based on updated map information.
+    /odom:      Odometry, odom information provided by T265 or simulator
+
+    Publishes:
+    /path/goal: Pose, path_planner uses this as its goal when plotting paths.
+    /cmd_vel:   Twist, for telling the motor driver what to do
+
+    Services:
+    GoTo: takes an x and y position on the map, and returns if succesful or aborted
+'''
 class MotionController(Node):
     
     def __init__(self):

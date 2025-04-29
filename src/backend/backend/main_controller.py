@@ -4,6 +4,13 @@ import os
 from enum import Enum
 from rclpy.node import Node
 
+'''
+    The main controller for the entire autonomous system. Goals and behavior of robot
+    are determined by a finite state machine.
+
+    TODO: Many services (like GoTo and FindTag) are already implemented, but need to be
+    integrated nicely into this controller
+'''
 class MainController(Node):
     def __init__(self):
         super().__init__('main_controller')

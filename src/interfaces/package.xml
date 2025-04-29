@@ -3,7 +3,7 @@
 <package format="3">
   <name>interfaces</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Provides some services and messages for use by backend</description>
   <maintainer email="woodsm25@up.edu">max</maintainer>
   <license>TODO: License declaration</license>
 

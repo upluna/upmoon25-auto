@@ -18,6 +18,21 @@ OBS_MAX_Z = 0.78
 OBS_MIN_Z = 0.64
 DEBUG = True
 
+'''
+    Generates an occupancy map of the arena based on incoming pointcloud data.
+
+    Subscriptions:
+    /camera/depth/points: PointCloud2
+
+    Publishes:
+    /map/global:         OccupancyGrid
+    /map/global_updates: OccupancyGridUpdates
+
+    Params:
+    use_sim_data: Set to true (default is true) if using simulator pointcloud
+
+    TODO: CUDA
+'''
 class GlobalMapper(Node):
 
     def __init__(self):
@@ -29,8 +44,6 @@ class GlobalMapper(Node):
         self.BOTTOM_CLIP = -2.0   # How far below should points get cut off
         self.CAM_FOV = np.pi / 2  # These parameters are used to calculate the
         self.CAM_DIST = 4.0       # camera's view cone for interpolation
-
-        self.genViewCone()
 
         self.gen_map = False
         self.first_gen = True # We don't publish the whole map everytime, just once
@@ -87,20 +100,6 @@ class GlobalMapper(Node):
         self.timer = self.create_timer(self.HZ, self.clk)
 
         self.get_logger().info("Initialized")
-
-    # Creates points in depth_link_optical frame which are transformed to map
-    # frame to filter out obstacles which aren't in the camera's view cone
-    def genViewCone(self):
-        ang = self.CAM_FOV / 2
-        y_dist = np.cos(ang) * self.CAM_DIST
-        z_dist = np.sin(ang) * self.CAM_DIST
-        
-        # X, Y, Z
-        self.CAM_POINTS = np.row_stack((
-            [0, 0, 0],
-            [0, y_dist, -y_dist],
-            [0, 0, 0]
-        ))
 
     def clk(self):
         self.update = True
@@ -216,7 +215,6 @@ class GlobalMapper(Node):
         x_max, x_min, y_max, y_min = self.filterSnapPoints(points)
 
         self.detectObstacles()
-
         
         if (self.first_gen):
             self.first_gen = False

@@ -8,6 +8,12 @@ from pygame.locals import *
 from geometry_msgs.msg import Twist
 from std_msgs.msg import String
 
+'''
+    Keyboard controls for simulator robot.
+
+    wasd - motion controls
+    zx   - camera servo controls
+'''
 class Controller(Node):
 
     def __init__(self):

@@ -13,7 +13,7 @@ from rclpy.executors import MultiThreadedExecutor
 
 '''
     This node handles all interactions with the Arduino. This includes force sensors,
-    IR sensors, and the camera servo.
+    IR sensors, camera servo, camera linear servo, and bucket linear servo.
 
     Subscriptions:
     /cmd/pan:           Int8 - +1 for pan left, -1 for pan right, 0 for stop

@@ -4,21 +4,24 @@ import Jetson.GPIO as GPIO
 from std_msgs.msg import Int16
 
 # Define the PWM pin
-PWM_PIN = 15
+PWM_PIN = 32
 
 # Servo PWM Specs
 PWM_FREQUENCY = 50  # 50Hz (20ms period)
-MIN_DC = 2.5
-MAX_DC = 12.5
-MAX_RANGE = 300
+MIN_DC = 4.7
+MAX_DC = 9.5
+MAX_RANGE = 100
 MIN_RANGE = 0
 INIT_RANGE = 0
 
-SLEEP_TIME = 10.0
+SLEEP_TIME = 3.0
 
-class CameraPan(Node):
+'''
+    This node's functionality has been moved to arduino_driver
+'''
+class CameraHeight(Node):
     def __init__(self):
-        super().__init__('camera_pan')
+        super().__init__('bucket_servos')
 
         # Set GPIO pin number (BCM numbering)
         try:
@@ -64,17 +67,17 @@ class CameraPan(Node):
         GPIO.cleanup()
         super().destroy_node()
 
-    def convertRangeToDutyCycle(self, angle):
-        if (angle < MIN_RANGE or angle > MAX_RANGE):
+    def convertRangeToDutyCycle(self, percent):
+        if (percent < MIN_RANGE or percent > MAX_RANGE):
             print('Servo set out of bounds')
-            angle = INIT_RANGE
-        dc = (angle * (MAX_DC - MIN_DC) / MAX_RANGE) + MIN_DC
+            percent = INIT_RANGE
+        dc = (percent * (MAX_DC - MIN_DC) / MAX_RANGE) + MIN_DC
         #print('Setting servo to %f' % (dc))
         return dc
 
 def main(args=None):
     rclpy.init(args=args)
-    node = CameraPan()
+    node = CameraHeight()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
