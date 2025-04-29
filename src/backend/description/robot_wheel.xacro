@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+ 
+    <xacro:include filename="robot_properties.xacro" />
+    <xacro:include filename="robot_inertia.xacro" />
+ 
+    <xacro:macro name="wheel" params="name x y wheel_offset">
+ 
+        <joint name="wheel_${name}_joint" type="continuous">
+            <parent link="base_link" />
+            <child link="wheel_${name}_link" />
+            <origin rpy="0 0 0" xyz="${x} ${y} ${-wheel_height}" />
+            <axis rpy="0 0 0" xyz="0 1 0"/>
+            <limit effort="100" velocity="100" />
+        </joint>
+ 
+        <link name="wheel_${name}_link">
+            <visual>
+                <origin xyz="0 ${wheel_offset} 0" rpy="0 1.57 1.57"/>
+                <geometry>
+                    <cylinder length="${wheel_thickness}" radius="${wheel_radius}"/>
+                </geometry>
+                <material name="orange" />
+            </visual>
+            <collision>
+                <origin xyz="0 ${wheel_offset} 0" rpy="0 1.57 1.57"/>
+                <geometry>
+                    <cylinder length="${wheel_thickness}" radius="${wheel_radius}"/>
+                </geometry>
+            </collision>
+            <xacro:inertial_cylinder mass="${wheel_mass}" length="${wheel_thickness}" radius="${wheel_radius}" >
+                <origin xyz="0 ${wheel_offset} 0" rpy="0 0 0"/>
+            </xacro:inertial_cylinder>
+        </link>
+    </xacro:macro>
+ 
+</robot>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+    <xacro:include filename="robot_properties.xacro"/>
+    <xacro:include filename="robot_inertia.xacro" />
+
+    <link name="servo_link">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <visual>
+            <origin xyz="0 0 0.05" rpy="0 0 0"/>
+            <geometry>
+                <!-- cylinder length="0.1" radius="0.1" / -->
+                <box size="0.1 0.1 0.1"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0.05 0" rpy="0 0 0"/>
+            <geometry>
+                <!-- cylinder length="0.1" radius="0.1" / -->
+                <box size="0.1 0.1 0.1"/>
+            </geometry>
+        </collision>
+        <xacro:inertial_cylinder mass="1.0" length="0.1" radius="0.1" >
+            <origin xyz="0 0 0.05" rpy="0 0 0"/>
+        </xacro:inertial_cylinder>
+    </link>
+
+    <joint name="servo_joint" type="continuous">
+        <parent link="base_link" />
+        <child link="servo_link" />
+        <origin rpy="0 0 0" xyz="0 0 ${base_height / 2}" />
+        <axis rpy="0 0 0" xyz="0 0 1"/>
+        <limit effort="100" velocity="100" />
+    </joint>
+
+
+
+</robot>

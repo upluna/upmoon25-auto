@@ -1,0 +1,8 @@
+These are the PWM pins that should work:
+GPIO 12, 13, 18, 19, 40, 41, and 44
+
+Board Numbering:
+Camera height = PIN 32
+Conveyor = PIN 36
+Camera Pan = PIN 15
+Bucket chain raise/lower: PIN 33

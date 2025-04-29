@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+ 
+    <link name="depth_link">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <visual>
+            <geometry>
+                <box size="0.03 0.03 0.03"/>
+            </geometry>
+        </visual>
+        <material name="blue" />
+    </link>
+ 
+    <joint name="depth_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="depth_link" />
+        <origin xyz="${base_length /2 + 0.015} 0 -0.015" rpy="0 0 0"/>
+    </joint>
+ 
+    <!-- This is for transformations between image frame and world frame -->
+    <link name="depth_link_optical"></link>
+    <link name="cam_link_optical"></link>
+ 
+    <joint name="cam_depth_joint" type="fixed">
+        <parent link="depth_link_optical" />
+        <child link="cam_link_optical" />
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    
+    <joint name="depth_optical_joint" type="fixed">
+        <parent link="depth_link" />
+        <child link="depth_link_optical" />
+        <origin xyz="0 0 0" rpy="${-pi / 2} 0 ${-pi / 2}"/>
+    </joint>
+ 
+    <gazebo reference="depth_link">
+        <material>Gazebo/Blue</material>
+ 
+        <sensor name="depth" type="depth">
+            <frame_name>depth_link_optical</frame_name>
+            <pose> 0 0 0 0 0 0 </pose>
+            <visualize>true</visualize>
+            <update_rate>40</update_rate>
+            <camera>
+                <horizontal_fov>1.57079632679</horizontal_fov>
+                <image>
+                    <format>B8G8R8</format>
+                    <width>640</width>
+                    <height>480</height>
+                </image>
+                <clip>
+                    <near>0.05</near>
+                    <far>25.0</far>
+                </clip>
+            </camera>
+            <plugin name="depth_controller" filename="libgazebo_ros_camera.so">
+                <frame_name>depth_link_optical</frame_name>
+                <min_depth>0.05</min_depth>
+                <max_depth>3.5</max_depth>
+                <ros>
+                    <namespace>camera</namespace>
+                </ros>
+            </plugin>
+        </sensor>
+    </gazebo>
+ 
+</robot>

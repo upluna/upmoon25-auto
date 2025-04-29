@@ -1,0 +1,2 @@
+bool gen_local
+bool gen_global

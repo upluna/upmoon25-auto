@@ -1,0 +1,11 @@
+$node
+
+init
+done
+fail
+
+$edge
+
+init -> success -> done
+init -> fail -> fail
+
