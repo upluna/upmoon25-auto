@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'bbot'
+package_name = 'frontend'
 
 setup(
     name=package_name,
@@ -21,16 +21,15 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-			'driver = bbot.bbot_driver:main',
-            'drive_motors = bbot.drive_motors:main',
-            'conveyor = bbot.conveyor:main',
-            'bucket_servos = bbot.bucket_servos:main',
-            'camera = bbot.camera:main',
-            'bucket_spin = bbot.bucket_spin:main',
-            'bbot_receiver_js = bbot.bbot_receiver_js:main',
-            'arduino_driver = bbot.arduino_driver:main',
-            'camera_pan = bbot.camera_pan:main',
-            'kb_controller = bbot.keyboard_driver:main'
+			'driver = frontend.frontend_driver:main',
+            'drive_motors = frontend.drive_motors:main',
+            'conveyor = frontend.conveyor:main',
+            'bucket_servos = frontend.bucket_servos:main',
+            'camera = frontend.camera:main',
+            'bucket_spin = frontend.bucket_spin:main',
+            'arduino_driver = frontend.arduino_driver:main',
+            'camera_pan = frontend.camera_pan:main',
+            'kb_controller = frontend.keyboard_driver:main'
         ],
     },
 )
