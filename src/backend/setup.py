@@ -33,7 +33,9 @@ setup(
             'test_path_plan = backend.test_path_planner:main',
             'test_tag = backend.tag_client:main',
             'image_saver = backend.debug.image_saver:main',
-            'test_path_replanning = backend.test_path_replanning:main'
+            'test_path_replanning = backend.test_path_replanning:main',
+            'localizer = backend.localizer:main',
+            'test_localizer = backend.test_localizer:main'
         ],
     },
 )

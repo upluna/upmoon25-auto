@@ -57,6 +57,15 @@ def generate_launch_description():
         ]
     )
 
+    odom_base_link_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=[
+            '0', '0', '0', '0', '0', '0',
+            'odom', 'base_link'
+        ]
+    )
+
     mapper = Node(
         package='backend',
         executable='global_mapper',
@@ -78,6 +87,12 @@ def generate_launch_description():
     motion_controller = Node(
         package='backend',
         executable='motion_controller',
+        output='screen',
+    )
+
+    head_controller = Node(
+        package='backend',
+        executable='head_controller',
         output='screen',
     )
 
@@ -140,9 +155,11 @@ def generate_launch_description():
         gazebo,
         node_robot_state_publisher,
         spawn_entity,
+        odom_base_link_tf,
         map_odom_tf,
-        mapper,
-        costmapper,
-        path_planner,
-        motion_controller
+        #mapper,
+        #costmapper,
+        #path_planner,
+        head_controller,
+        #motion_controller
     ])

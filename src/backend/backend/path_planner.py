@@ -22,8 +22,8 @@ from tf2_ros.transform_listener import TransformListener
     Subscriptions:
     /map/global_costmap: OccupancyGrid, map uses for path planning
     /path/goal:          Pose, goal pose
-    odom:                Odometry, used to acquire robot's current position 
-                                   for path planning
+    /odom_true:          Odometry, used to acquire robot's current position 
+                         for path planning
 
     Publishes:
     /path/path: Path, path to goal pose
@@ -51,7 +51,7 @@ class PathPlanner(Node):
 
         # Where path destinations are published
         self.SUB_goal = self.create_subscription(Pose, 'path/goal', self.onGoal, self.QOS)
-        self.SUB_odom = self.create_subscription(Odometry, 'odom', self.onOdom, self.QOS)
+        self.SUB_odom = self.create_subscription(Odometry, '/odom_true', self.onOdom, self.QOS)
 
         # Where our current path is published
         self.PUB_path = self.create_publisher(Path, 'path/path', self.QOS)
