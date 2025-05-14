@@ -11,6 +11,7 @@
   <exec_depend>pygame</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>map_msgs</exec_depend>
   <exec_depend>apriltag</exec_depend>
   <exec_depend>numpy</exec_depend>
   <exec_depend>cv_bridge</exec_depend>

@@ -31,9 +31,9 @@ setup(
             'global_costmapper = backend.global_costmapper:main',
             'path_planner = backend.path_planner:main',
             'test_path_plan = backend.test_path_planner:main',
-            'test = backend.debug.tag_client:main',
+            'test_tag = backend.tag_client:main',
             'image_saver = backend.debug.image_saver:main',
-            'test_path_replanning = backend.test_path_replanning:main',
+            'test_path_replanning = backend.test_path_replanning:main'
         ],
     },
 )

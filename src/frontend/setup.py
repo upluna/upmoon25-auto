@@ -30,7 +30,9 @@ setup(
             'arduino_driver = frontend.arduino_driver:main',
             'camera_pan = frontend.camera_pan:main',
             'kb_controller = frontend.keyboard_driver:main',
-            'rgb_driver = frontend.rgb_driver:main'
+            'rgb_driver = frontend.rgb_driver:main',
+            't265_driver = frontend.t265_driver:main',
+            'depth_driver = frontend.depth_driver:main'
         ],
     },
 )

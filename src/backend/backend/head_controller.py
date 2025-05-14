@@ -25,16 +25,19 @@ from interfaces.srv import FindTag
 RGB_IMG_TOPIC   = '/camera/rgb/image_raw'
 RGB_INFO_TOPIC  = '/camera/rgb/camera_info'
 
+SIM = False # Whether or not we're using simulated data
+
 # This is a total mystery to me. For some reason, I have to divide the tag size by this factor
 # for the pose estimation to work. Could break for real world testing
 TAG_SIZE = 0.5 / 1.79690835
+
 
 IMG_TOLERANCE = 20     # How much we allow the center of the tag to be from the center of the camera
 IMG_WIDTH     = 640
 IMG_HEIGHT    = 480
 
 # For debugging
-DO_TRANSFORM = True
+DO_TRANSFORM = False
 PUBLISH_POSE = True # Whether or not to publish a pose indicating the relative location and orientation of the tag
 
 
@@ -68,6 +71,10 @@ class HeadController(Node):
 
     def __init__(self):
         super().__init__('head_controller')
+
+        if not SIM:
+            # For the real world tag
+            TAG_SIZE = 0.43
 
         self.state = State.WAITING_CAMINFO
 
@@ -302,7 +309,9 @@ class HeadController(Node):
         pose.orientation.w = tag_q[3]
 
         fixed_orientation = pose
-        fixed_orientation = tf2_geometry_msgs.do_transform_pose(pose, transform)
+
+        if DO_TRANSFORM:
+            fixed_orientation = tf2_geometry_msgs.do_transform_pose(pose, transform)
         msg.pose.orientation = fixed_orientation.orientation
 
 

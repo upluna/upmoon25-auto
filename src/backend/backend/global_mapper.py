@@ -198,7 +198,6 @@ class GlobalMapper(Node):
             pts[:, 2] = pts[:, 2] - tf_pos.z
             return pts @ tf_rot
 
-        # We assume z-filtering has already been done 
         points = apply(points)
 
         return (points, True)
