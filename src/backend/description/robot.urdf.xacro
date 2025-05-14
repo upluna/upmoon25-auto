@@ -57,7 +57,7 @@
     </link>
  
     <xacro:include filename="robot_actuator.xacro"   />
-    <xacro:include filename="robot_imu.xacro"       />
+    <!-- xacro:include filename="robot_imu.xacro"       / -->
     <xacro:include filename="robot_depth.xacro"     />
     <xacro:include filename="robot_gazebo.xacro" />
 

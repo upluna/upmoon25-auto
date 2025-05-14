@@ -3,12 +3,13 @@
 
     <xacro:include filename="robot_properties.xacro"/>
 
+    <!-- Sim IMU is attached to the front facing depth camera, similar to real bot -->
     <link name="imu_link">
         <origin xyz="0 0 0" rpy="0 0 0"/>
     </link>
 
     <joint name="imu_joint" type="fixed">
-        <parent link="base_link"/>
+        <parent link="depth_link"/>
         <child link="imu_link"/>
         <origin xyz="${imu_x} ${imu_y} ${imu_z}" rpy="0 0 0"/>
     </joint>
@@ -32,7 +33,7 @@
         <xyzOffset>0 0 0</xyzOffset>
         <rpyOffset>0 0 0</rpyOffset>
         <frameName>imu_link</frameName>
-        <initialOrientationAsReference>false</initialOrientationAsReference>
+        <initialOrientationAsReference>true</initialOrientationAsReference>
       </plugin>
       <pose>0 0 0 0 0 0</pose>
     </sensor>

@@ -6,11 +6,15 @@ from std_msgs.msg import Header
 from geometry_msgs.msg import Vector3, Pose, PoseWithCovariance, Point, Quaternion, Twist, TwistWithCovariance
 from nav_msgs.msg import Odometry
 import pyrealsense2 as rs
+import quaternion
 
 from rclpy.node import Node, QoSProfile
 
 T265_SN = '943222111294'
 COV = 0.01
+
+X_OFFSET = 0.5 # How far forward the camera is from the base
+Z_OFFSET = 0.1 # How far up the camera is from the base
 
 class T265Driver(Node):
 
@@ -81,6 +85,10 @@ class T265Driver(Node):
         quat.y = -data.rotation.x
         quat.z = data.rotation.y
         quat.w = data.rotation.w
+
+        # We now perform the offset calculation
+        rot_vec = quaternion.as_rotation_vector(quaternion.from_float_array([quat.w, quat.x, quat.y, quat.z]))
+        self.get_logger().info(f'VEC: {rot_vec[0]}, {rot_vec[1]}, {rot_vec[2]}')
 
         odom_p = Pose()
         odom_p.position = point
