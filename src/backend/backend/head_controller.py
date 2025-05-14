@@ -37,7 +37,7 @@ IMG_WIDTH     = 640
 IMG_HEIGHT    = 480
 
 # For debugging
-DO_TRANSFORM = False
+DO_TRANSFORM = True
 PUBLISH_POSE = True # Whether or not to publish a pose indicating the relative location and orientation of the tag
 
 

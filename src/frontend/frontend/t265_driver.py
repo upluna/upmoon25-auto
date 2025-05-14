@@ -13,8 +13,9 @@ from rclpy.node import Node, QoSProfile
 T265_SN = '943222111294'
 COV = 0.01
 
-X_OFFSET = 0.5 # How far forward the camera is from the base
-Z_OFFSET = 0.1 # How far up the camera is from the base
+X_OFFSET = 0.0      # How far forward the camera is from the base
+Z_OFFSET = 0.0     # How far up the camera is from the base
+ROBOT_HEIGHT = 0.22 # How far the base_link is from the ground
 
 class T265Driver(Node):
 
@@ -29,7 +30,9 @@ class T265Driver(Node):
             durability=2   # Volatile
         )
 
-        self.PUB_odom = self.create_publisher(Odometry, '/odom', self.QOS)
+        self.PUB_odom = self.create_publisher(Odometry, '/odom_raw', self.QOS)
+
+        self.init_pose = None
 
         pipe = rs.pipeline()
         
@@ -87,8 +90,25 @@ class T265Driver(Node):
         quat.w = data.rotation.w
 
         # We now perform the offset calculation
-        rot_vec = quaternion.as_rotation_vector(quaternion.from_float_array([quat.w, quat.x, quat.y, quat.z]))
-        self.get_logger().info(f'VEC: {rot_vec[0]}, {rot_vec[1]}, {rot_vec[2]}')
+        np_quat = quaternion.from_float_array([quat.w, quat.x, quat.y, quat.z])
+        forward_vec = quaternion.rotate_vectors(np_quat, [1, 0, 0])
+        up_vec = quaternion.rotate_vectors(np_quat, [0, 0, 1])
+
+        forward_vec *= X_OFFSET
+        up_vec *= Z_OFFSET
+        point.x = point.x - forward_vec[0] - up_vec[0]
+        point.y = point.y - forward_vec[1] - up_vec[1]
+        point.z = point.z - forward_vec[2] - up_vec[2] + ROBOT_HEIGHT
+
+        if self.init_pose is None:
+            self.init_pose = point
+            return
+
+        point.x = point.x - self.init_pose.x
+        point.y = point.y - self.init_pose.y
+        point.z = point.z - self.init_pose.z
+
+        self.get_logger().info(f'ORIENTATION: {np_quat.w}, {np_quat.x}, {np_quat.y}, {np_quat.z}')
 
         odom_p = Pose()
         odom_p.position = point
