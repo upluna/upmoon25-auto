@@ -40,7 +40,7 @@ class Localizer(Node):
 
         self.last_real_pos = None
 
-        self.curr_translation = None # Pose received from AprilTag estimate, converted to odom frame
+        self.curr_translation = np.array([0.0, 0.0, 0.0]) # Pose received from AprilTag estimate, converted to odom frame
         self.curr_rotation = None
         self.odom_offset = np.array([0.0, 0.0, 0.0])
         self.map_odom_tf = None # Transform from map to odom, which we use to convert AprilTag estimates to odom
@@ -57,8 +57,10 @@ class Localizer(Node):
 
     def onOdom(self, msg):
         self.curr_rotation = msg.pose.pose.orientation
-        self.curr_translation = msg.pose.pose.position
-        self.curr_translation.z = 0.0
+        self.curr_translation[0] = msg.pose.pose.position.x
+        self.curr_translation[1] = msg.pose.pose.position.y
+        self.curr_translation[2] = msg.pose.pose.position.z
+
 
         self.publishOdom(msg)
         self.publishOdomBaseLinkTransform(msg.header.stamp)
@@ -102,9 +104,9 @@ class Localizer(Node):
         self.last_real_pos = real_pos
         self.get_logger().info(f'Curr translation: {self.curr_translation}')
 
-        self.odom_offset[0] = real_pos[0] - self.curr_translation.x
-        self.odom_offset[1] = real_pos[1] - self.curr_translation.y
-        self.odom_offset[2] = real_pos[2] - self.curr_translation.z
+        self.odom_offset[0] = real_pos[0] - self.curr_translation[0]
+        self.odom_offset[1] = real_pos[1] - self.curr_translation[1]
+        self.odom_offset[2] = real_pos[2] - self.curr_translation[2]
 
         self.get_logger().info(f'Corrected dead reckoning estimate: {self.odom_offset[0]}, {self.odom_offset[1]}, {self.odom_offset[2]}')
 
@@ -119,9 +121,9 @@ class Localizer(Node):
         t.header.frame_id = 'odom'
         t.child_frame_id = 'base_link'
 
-        t.transform.translation.x = self.curr_translation.x + self.odom_offset[0]
-        t.transform.translation.y = self.curr_translation.y + self.odom_offset[1]
-        t.transform.translation.z = self.curr_translation.z + self.odom_offset[2]
+        t.transform.translation.x = self.curr_translation[0] + self.odom_offset[0]
+        t.transform.translation.y = self.curr_translation[1] + self.odom_offset[1]
+        t.transform.translation.z = self.curr_translation[2] + self.odom_offset[2]
 
         t.transform.rotation.x = self.curr_rotation.x
         t.transform.rotation.y = self.curr_rotation.y
