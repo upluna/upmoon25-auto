@@ -4,7 +4,7 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Int8
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros.transform_broadcaster import TransformBroadcaster
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, PoseWithCovariance
 from interfaces.srv import FindTag
 
 import numpy as np
@@ -38,8 +38,11 @@ class Localizer(Node):
 
         self.active = True
 
+        self.last_real_pos = None
+
         self.curr_translation = None # Pose received from AprilTag estimate, converted to odom frame
         self.curr_rotation = None
+        self.odom_offset = np.array([0.0, 0.0, 0.0])
         self.map_odom_tf = None # Transform from map to odom, which we use to convert AprilTag estimates to odom
 
         self.PUB_odom = self.create_publisher(Odometry, '/odom_true', self.QOS)
@@ -54,7 +57,21 @@ class Localizer(Node):
 
     def onOdom(self, msg):
         self.curr_rotation = msg.pose.pose.orientation
-        
+        self.curr_translation = msg.pose.pose.position
+        self.curr_translation.z = 0.0
+
+        self.publishOdom(msg)
+        self.publishOdomBaseLinkTransform(msg.header.stamp)
+
+    def publishOdom(self, msg):
+        msg.header.frame_id = 'odom'
+        msg.child_frame_id = 'base_link'
+
+        msg.pose.pose.position.x += self.odom_offset[0]
+        msg.pose.pose.position.y += self.odom_offset[1]
+        msg.pose.pose.position.z += self.odom_offset[2]
+
+        self.PUB_odom.publish(msg)
 
     def updateOdom(self, pose):
         quat_conj = quaternion.from_float_array([
@@ -68,14 +85,31 @@ class Localizer(Node):
 
         translate = quaternion.rotate_vectors(quat_conj, translate)
 
-        self.curr_translation = np.array([
+        self.get_logger().info(f'Received {translate}')
+        self.get_logger().info(f'Base is {self.map_odom_tf.translation}')
+
+        real_pos = np.array([
             -translate[0] - self.map_odom_tf.translation.x,
             -translate[1] - self.map_odom_tf.translation.y,
             -translate[2] - self.map_odom_tf.translation.z,
-
         ])
 
-        self.publishOdomBaseLinkTransform(pose.header.stamp)
+        self.get_logger().info(f'Real pose: {real_pos}')
+
+        if self.last_real_pos is not None:
+            self.get_logger().error(f'Diff: {real_pos - self.last_real_pos}')
+
+        self.last_real_pos = real_pos
+        self.get_logger().info(f'Curr translation: {self.curr_translation}')
+
+        self.odom_offset[0] = real_pos[0] - self.curr_translation.x
+        self.odom_offset[1] = real_pos[1] - self.curr_translation.y
+        self.odom_offset[2] = real_pos[2] - self.curr_translation.z
+
+        self.get_logger().info(f'Corrected dead reckoning estimate: {self.odom_offset[0]}, {self.odom_offset[1]}, {self.odom_offset[2]}')
+
+
+        #self.publishOdomBaseLinkTransform(pose.header.stamp)
         #self.publishOdom(pose.header.stamp)
 
     def publishOdomBaseLinkTransform(self, time):
@@ -85,9 +119,9 @@ class Localizer(Node):
         t.header.frame_id = 'odom'
         t.child_frame_id = 'base_link'
 
-        t.transform.translation.x = self.curr_translation[0]
-        t.transform.translation.y = self.curr_translation[1]
-        t.transform.translation.z = self.curr_translation[2]
+        t.transform.translation.x = self.curr_translation.x + self.odom_offset[0]
+        t.transform.translation.y = self.curr_translation.y + self.odom_offset[1]
+        t.transform.translation.z = self.curr_translation.z + self.odom_offset[2]
 
         t.transform.rotation.x = self.curr_rotation.x
         t.transform.rotation.y = self.curr_rotation.y
@@ -127,6 +161,8 @@ class Localizer(Node):
 
         self.get_logger().info('Published map -> odom')
         self.get_logger().info(f'TRANSLATION: {t.transform.translation.x}, {t.transform.translation.y}, {t.transform.translation.z}')
+        self.get_logger().info(f'ROTATION: {t.transform.rotation.w}, {t.transform.rotation.x}, {t.transform.rotation.y}, {t.transform.rotation.z}')
+
         self.TF_map_odom.sendTransform(t)
 
         self.map_odom_tf = t.transform
@@ -143,16 +179,12 @@ class Localizer(Node):
 
         try:
             if result.success:
-
                 if self.map_odom_tf is None:
                     self.publishMapOdomTransform(result.tag_pose)
                 self.updateOdom(result.tag_pose)
         except Exception as e:
             self.get_logger().error(f'Error: {e}')
 
-        
-        # Make a new request
-        self.requestFindTag('balls')
 
     def requestFindTag(self, frame):
         request = FindTag.Request()

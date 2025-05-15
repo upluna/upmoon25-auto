@@ -11,7 +11,7 @@ from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Pose, Vector3
 from nav_msgs.msg import OccupancyGrid, MapMetaData
 from map_msgs.msg import OccupancyGridUpdate
-from std_msgs.msg import Header
+from std_msgs.msg import Header, Int8
 from scipy.interpolate import griddata
 
 OBS_MAX_Z = 0.78
@@ -23,6 +23,7 @@ DEBUG = True
 
     Subscriptions:
     /camera/depth/points: PointCloud2
+    /cmd_map:             Int8, 1 to turn map on, 0 to turn it off
 
     Publishes:
     /map/global:         OccupancyGrid
@@ -68,8 +69,10 @@ class GlobalMapper(Node):
 
         # Sim parameter
         self.declare_parameter('use_sim_data', True)
+        self.declare_parameter('map_on', True)
 
         self.use_sim_data = self.get_parameter('use_sim_data').value
+        self.map_on = self.get_parameter('map_on').value
 
         # TF Buffer for looking up transforms
         self.tf_buffer = tf2_ros.Buffer()
@@ -91,6 +94,7 @@ class GlobalMapper(Node):
 
         # Setup subscribers and publishers
         self.SUB_depth  = self.create_subscription(PointCloud2, '/camera/depth/points', callback=self.handleDepth, qos_profile=self.QOS, callback_group=sub_group)
+        self.SUB_cmd    = self.create_subscription(Int8, '/cmd_map', callback=self.handleCmd, qos_profile=self.QOS, callback_group=sub_group)
         #self.SUB_mapcmd = self.create_subscription(MapCmd, '/cmd_map', callback=self.handleCmd, qos_profile=self.QOS, callback_group=sub_group)
 
         self.PUB_global = self.create_publisher(OccupancyGrid, '/map/global', qos_profile=self.NAV_QOS)
@@ -162,7 +166,7 @@ class GlobalMapper(Node):
         self.grid[unknown_coords[0] + x_min, unknown_coords[1] + y_min] = interp
 
     def detectObstacles(self):
-        # We compare the obstacles relative to the ground position, not the robot position
+        # We compare the obstacles relative to the robot position
         grid_mask = (self.grid == 0.0)
         self.grid = self.grid  + (0.95 - 0.062) # rad / 2 - wheel height
                                                 # TODO make this a parameter
@@ -224,10 +228,14 @@ class GlobalMapper(Node):
         self.update = False
 
     def handleCmd(self, msg):
-        pass
+        data = int(msg.data)
+        if (data > 0):
+            self.map_on = True
+        else:
+            self.map_on = False
 
     def handleDepth(self, msg):
-        if (not self.update):
+        if (not self.update or not self.map_on):
             return
         
         points = np.frombuffer(msg.data, dtype=np.float32)
