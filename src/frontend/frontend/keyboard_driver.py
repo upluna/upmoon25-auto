@@ -81,10 +81,10 @@ class MinimalDriver(Node):
                 velocity_msg.linear.x = -self.throttle # set the throttle to negative
             if (key == 97): # a
                 velocity_msg.angular.z = -1.0 # negative value indicates a left turn
-                #velocity_msg.linear.x = self.throttle # set the direction to positive
+                velocity_msg.linear.x = self.throttle # set the direction to positive
             if (key == 100): # d
                 velocity_msg.angular.z = 1.0 # positive value indicates a right turn
-                #velocity_msg.linear.x = self.throttle # set the direction to positive
+                velocity_msg.linear.x = self.throttle # set the direction to positive
             if (key == 101):
                 self.throttle += 10.0
                 if (self.throttle > 100.0):
