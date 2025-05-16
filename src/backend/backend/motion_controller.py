@@ -37,7 +37,7 @@ class State(Enum):
     Subscriptions:
     /path/path: Path, path to the goal provided by path_planner. Dynamically re-plans
                       based on updated map information.
-    /odom:      Odometry, odom information provided by T265 or simulator
+    /odom_true:      Odometry, odom information provided by T265 or simulator
 
     Publishes:
     /path/goal: Pose, path_planner uses this as its goal when plotting paths.
@@ -83,7 +83,7 @@ class MotionController(Node):
         self.srv = self.create_service(GoTo, 'goto', self.serveGoTo, callback_group=srv_cb)
 
         self.SUB_path = self.create_subscription(Path, 'path/path', self.onPath, self.QOS, callback_group=pubsub_cb)
-        self.SUB_odom = self.create_subscription(Odometry, 'odom', self.onOdom, self.QOS, callback_group=pubsub_cb)
+        self.SUB_odom = self.create_subscription(Odometry, '/odom_true', self.onOdom, self.QOS, callback_group=pubsub_cb)
 
         self.PUB_goal = self.create_publisher(Pose, 'path/goal', self.QOS, callback_group=pubsub_cb)
         self.PUB_vel = self.create_publisher(Twist, '/cmd_vel', 10, callback_group=pubsub_cb)
