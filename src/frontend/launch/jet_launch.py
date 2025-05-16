@@ -11,38 +11,14 @@ def generate_launch_description():
         ),
         Node(
             package='frontend',
-            executable='conveyor',
-            name='conveyor_node',
+            executable='arduino_driver',
+            name='arduino_driver_node',
             output='screen'
         ),
         Node(
             package='frontend',
-            executable='bucket_servos',
-            name='bucket_servos_node',
+            executable='rgb_driver',
+            name='rgb_driver',
             output='screen'
         ),
-        Node(
-            package='frontend',
-            executable='camera',
-            name='camera_node',
-            output='screen'
-        ),
-        Node(
-            package='frontend',
-            executable='bucket_spin',
-            name='bucket_spin_node',
-            output='screen'
-        ),
-        Node(
-            package='frontend',
-            executable='camera_pan',
-            name='camera_pan_node',
-            output='screen'
-        ),
-        # Node(
-        #     package='frontend',
-        #     executable='arduino_driver',
-        #     name='arduino_driver_node',
-        #     output='screen'
-        # ),
     ])

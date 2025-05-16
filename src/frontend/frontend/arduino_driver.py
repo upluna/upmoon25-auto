@@ -3,12 +3,19 @@ import serial
 import serial.tools.list_ports
 import subprocess
 import time
+import numpy as np
+import quaternion
 
 from enum import Enum
 from rclpy.node import Node
 from std_msgs.msg import Float32, Int8, Int16
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
+from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
+from tf2_ros.transform_broadcaster import TransformBroadcaster
+from geometry_msgs.msg import TransformStamped, PoseWithCovariance
+from sensor_msgs.msg import JointState
+
 
 
 '''
@@ -32,6 +39,12 @@ from rclpy.executors import MultiThreadedExecutor
 DEBUG = True
 PAN_MAX = 180
 
+PAN_ANG_0 = 0
+PAN_ANG_180 = 280
+
+LIN_SERVO_SPEED = 0.012 # Meters per second
+LIN_SERVO_MAX = 0.2 # Meters
+
 class PanState(Enum):
     STOP = 0
     LEFT = 1
@@ -48,11 +61,7 @@ class ArduinoDriver(Node):
         
         self.port = self.findArduinoPort()
         if self.port:
-
-            if DEBUG:
-                self.flashHexFile(self.port, 'ServoTest.ino.hex') 
-            else:
-                self.flashHexFile(self.port, 'SerialTest.ino.hex') 
+            self.flashHexFile(self.port, 'ServoTest.ino.hex') 
         else:
             self.get_logger().error("Could not find arduino port!")
             self.destroy_node()
@@ -83,6 +92,9 @@ class ArduinoDriver(Node):
         self.create_subscription(Int16, '/cmd/bucket_pos', self.onBucket, 10, callback_group=sub_cb)
         self.create_subscription(Int16, '/cmd/camera_height', self.onCam, 10, callback_group=sub_cb)
 
+        # Transform broadcasters
+        self.PUB_joint = self.create_publisher(JointState, '/joint_states', 3, callback_group=sub_cb)
+
         self.create_timer(0.04, self.camTick, sub_cb)
         self.create_timer(0.01, self.handleSerial, pub_cb)
 
@@ -91,7 +103,12 @@ class ArduinoDriver(Node):
         self.cam_pan = 0 # 0 to PAN_MAX degrees (?)
 
         self.cam_height = 0
+        self.cam_height_tf = 0.0
         self.bucket_height = 0
+
+        # Publish initial transforms 
+        self.publishActTF(0.0)
+        self.publishServoTF(0.0)
 
     def onBucket(self, msg):
         self.bucket_height = msg.data
@@ -113,7 +130,6 @@ class ArduinoDriver(Node):
             cam_pan_pad = str(self.cam_pan).zfill(3)
             cam_height_pad = str(self.cam_height).zfill(3)
             bucket_height_pad = str(self.bucket_height).zfill(3)
- 
 
             string = f'{cam_pan_pad}:{cam_height_pad}:{bucket_height_pad}\n'
             self.get_logger().info(f'Writing {string}')
@@ -128,16 +144,6 @@ class ArduinoDriver(Node):
             return 
 
         return
-
-        datum = self.ser.readline().decode('utf-8').rstrip('\n').split('#')
-        # For now, only the left IR sensor is implemented, so there is only one data point
-        for i, data in enumerate(datum):
-            # Don't know why this happens, strip() doesn't solve for some reason
-            if data == '':
-                return
-            msg = Float32()
-            msg.data = float(data)
-            self.sensor_pubs[i].publish(msg)
         
 
     # Updates the cam pan
@@ -153,6 +159,52 @@ class ArduinoDriver(Node):
             self.cam_pan = 0
         elif(self.cam_pan > PAN_MAX):
             self.cam_pan = PAN_MAX
+
+        # Logic for approximating position of linear servo
+        converted_cam_height = (float(self.cam_height) / 100.0) * LIN_SERVO_MAX
+        if (self.cam_height_tf < converted_cam_height):
+            self.cam_height_tf += (LIN_SERVO_SPEED * 0.04) # Timer runs every 0.04 seconds
+        elif (self.cam_height_tf > converted_cam_height):
+            self.cam_height_tf -= (LIN_SERVO_SPEED * 0.04)
+
+        # Stops the jittering
+        if (abs(self.cam_height_tf - converted_cam_height) <= LIN_SERVO_SPEED * 0.04):
+            self.cam_height_tf = converted_cam_height
+
+
+        # Calculate actual transform of camera
+        percentage = float(self.cam_pan) / PAN_MAX
+        ang = ((PAN_ANG_180 - PAN_ANG_0) * percentage) + PAN_ANG_0
+
+        self.publishServoTF(ang)
+        self.publishActTF(self.cam_height_tf)
+
+    def publishActTF(self, height):
+        msg = JointState()
+
+        msg.header.stamp = self.get_clock().now().to_msg()
+
+        msg.name = ['actuator_joint']
+        msg.position = np.array([height], dtype=np.float64).tolist()
+        msg.velocity = np.array([0], dtype=np.float64).tolist()
+        msg.effort = np.array([0], dtype=np.float64).tolist()
+
+        self.PUB_joint.publish(msg)
+
+
+    def publishServoTF(self, ang):
+        msg = JointState()
+
+        msg.header.stamp = self.get_clock().now().to_msg()
+
+        radians_ratio = np.pi / 180.0
+
+        msg.name = ['servo_joint']
+        msg.position = np.array([-ang * radians_ratio], dtype=np.float64).tolist()
+        msg.velocity = np.array([0], dtype=np.float64).tolist()
+        msg.effort =   np.array([0], dtype=np.float64).tolist()
+
+        self.PUB_joint.publish(msg)
         
     def onPan(self, msg):
         if (msg.data > 0):

@@ -5,6 +5,7 @@ import numpy as np
 import tf2_ros
 import tf2_geometry_msgs
 import quaternion
+import time
 
 from rclpy.node import Node, QoSProfile
 from rclpy.executors import MultiThreadedExecutor
@@ -13,7 +14,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from enum import Enum
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
-from std_msgs.msg import Header, ColorRGBA, String
+from std_msgs.msg import Header, ColorRGBA, String, Int8
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Pose, Vector3, Point, Quaternion, PoseStamped
 from builtin_interfaces.msg import Duration
@@ -25,14 +26,12 @@ from interfaces.srv import FindTag
 RGB_IMG_TOPIC   = '/camera/rgb/image_raw'
 RGB_INFO_TOPIC  = '/camera/rgb/camera_info'
 
-SIM = False # Whether or not we're using simulated data
-
 # This is a total mystery to me. For some reason, I have to divide the tag size by this factor
 # for the pose estimation to work. Could break for real world testing
 TAG_SIZE = 0.5 / 1.79690835
 
 
-IMG_TOLERANCE = 20     # How much we allow the center of the tag to be from the center of the camera
+IMG_TOLERANCE = 40     # How much we allow the center of the tag to be from the center of the camera (pixels)
 IMG_WIDTH     = 640
 IMG_HEIGHT    = 480
 
@@ -72,15 +71,19 @@ class HeadController(Node):
     def __init__(self):
         super().__init__('head_controller')
 
-        if not SIM:
-            # For the real world tag
-            TAG_SIZE = 0.43
+
 
         self.state = State.WAITING_CAMINFO
 
         self.bridge = CvBridge()
 
-        self.declare_parameter('ready', False)
+        self.declare_parameter('use_sim_data', True)
+
+        self.sim = self.get_parameter('use_sim_data').value
+
+        if not self.sim:
+            # For the real world tag
+            TAG_SIZE = 0.35878
 
         # This is special for Gazebo - subscriber QOS must match publisher QOS
         self.QOS = QoSProfile(
@@ -102,6 +105,7 @@ class HeadController(Node):
         self.cb_group = ReentrantCallbackGroup()
 
         self.tag_pose_found = None
+        self.found_tag = False
 
         self.srv = self.create_service(FindTag, 'find_tag', self.serviceFindTag, callback_group=self.cb_group)
         self.condition = Condition()
@@ -109,7 +113,10 @@ class HeadController(Node):
         self.subscriber_caminfo = self.create_subscription(
             CameraInfo, RGB_INFO_TOPIC, self.onInfo, self.QOS)
         
-        self.cmd_publisher = self.create_publisher(String, '/cmd_servo', 1)
+        if self.sim:
+            self.cmd_publisher = self.create_publisher(String, '/cmd_servo', 1)
+        else:
+            self.cmd_publisher = self.create_publisher(Int8, '/cmd/pan', 3)
 
         if PUBLISH_POSE:
             self.pose_publisher = self.create_publisher(PoseStamped, '/debug/tag_pose', self.QOS)
@@ -158,9 +165,22 @@ class HeadController(Node):
 
     # CMD is of type ServoCMD
     def sendServoCMD(self, cmd):
-        msg = String()
-        msg.data = cmd.value
-        self.cmd_publisher.publish(msg)
+
+        if self.sim:
+            msg = String()
+            msg.data = cmd.value
+            self.cmd_publisher.publish(msg)
+        else:
+            msg = Int8()
+
+            if cmd == ServoCMD.LEFT:
+                msg.data = 1
+            if cmd == ServoCMD.RIGHT:
+                msg.data = -1
+            else:
+                msg.data = 0
+
+            self.cmd_publisher.publish(msg)
 
         if (cmd != ServoCMD.STOP):
             self.prev_direction = cmd
@@ -182,12 +202,11 @@ class HeadController(Node):
 
         self.state = State.WAITING_REQUEST
 
-        # Signal to other nodes that we're ready
-        ready_param = [rclpy.Parameter(name='ready', value=True)]
-        self.set_parameters(ready_param)
 
     def onImg(self, msg):
         # We only care about the camera info if we're servicing a request
+        if (self.found_tag):
+            return
         if (not self.state == State.SERVICING):
             self.sendServoCMD(ServoCMD.STOP)
             return
@@ -205,13 +224,13 @@ class HeadController(Node):
         tag_y = round(detection.center[1]) # Might need this for linear actuator code
         x_diff = (IMG_WIDTH // 2) - tag_x
 
-        if (x_diff > IMG_TOLERANCE):
-            self.sendServoCMD(ServoCMD.RIGHT)
-        elif (x_diff < -IMG_TOLERANCE):
-            self.sendServoCMD(ServoCMD.LEFT)
-        else:
-            self.sendServoCMD(ServoCMD.STOP)
-            #self.foundTag(detection, time)
+        #if (x_diff > IMG_TOLERANCE):
+        #    self.sendServoCMD(ServoCMD.RIGHT)
+        #elif (x_diff < -IMG_TOLERANCE):
+        #    self.sendServoCMD(ServoCMD.LEFT)
+        #else:
+        #    self.sendServoCMD(ServoCMD.STOP)
+        #    #self.foundTag(detection, time)
         self.foundTag(detection, time)
 
     def detectTag(self, img):
@@ -226,6 +245,23 @@ class HeadController(Node):
             tag_size = TAG_SIZE
             )
         
+        if len(detections) > 0:
+            self.found_tag = True
+            self.get_logger().info("Sleep")
+            self.sendServoCMD(ServoCMD.STOP)
+            # Sleep a little to let servo catch up
+            time.sleep(0.8)
+            self.get_logger().info("Done")
+        else:
+            return None
+
+        detections = self.detector.detect(
+            img=cv_rgb_img,
+            estimate_tag_pose=True,
+            camera_params=(self.cam_mtx[0][0], self.cam_mtx[0][2], self.cam_mtx[1][1], self.cam_mtx[1][2]),
+            tag_size = TAG_SIZE
+            )
+
         for detection in detections:
             return detection
         
@@ -241,20 +277,10 @@ class HeadController(Node):
         if DO_TRANSFORM:
             try:
                 transform = self.tf_buffer.lookup_transform(
-                    'base_link', 'rgb_link_optical', rclpy.time.Time()
+                    'base_link', 'rgb_link_optical', stamp, rclpy.duration.Duration(seconds=1.0)  
                 )
             except Exception as e:
-                self.get_logger().info(str(e))
                 return
-        
-        self.get_logger().info("Pure rotation estimate: " + str(
-            quaternion.from_rotation_matrix(detection.pose_R)
-            ))
-        self.get_logger().info("Pure position estimate: " + str(
-        detection.pose_t
-        ))
-        
-
         # This is so lame, but the constructor doesn't work :(
         # Rotation is handled later
         quat = Quaternion()
@@ -292,7 +318,7 @@ class HeadController(Node):
         if DO_TRANSFORM:
             try:
                 transform = self.tf_buffer.lookup_transform(
-                    'base_link', 'rgb_link', rclpy.time.Time()
+                    'base_link', 'rgb_link', stamp, rclpy.duration.Duration(seconds=1.0)  
                 )
             except Exception as e:
                 self.get_logger().info(str(e))
@@ -324,6 +350,8 @@ class HeadController(Node):
             self.state = State.WAITING_REQUEST
             self.sendServoCMD(ServoCMD.STOP)
             self.condition.notify()
+
+        self.found_tag = False
 
 
 def main(args=None):

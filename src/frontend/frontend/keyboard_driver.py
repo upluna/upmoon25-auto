@@ -51,6 +51,7 @@ class MinimalDriver(Node):
 
         self.throttle = 100.0
         self.cam_height = 0
+        self.bucket_pos = 0
 
         self.FPS = 60
 
@@ -107,6 +108,15 @@ class MinimalDriver(Node):
                 self.cam_height -= 1
                 if (self.cam_height < 0):
                     self.cam_height = 0
+            if (key == ord('i')): # u
+                self.bucket_pos += 1
+                if (self.bucket_pos > 100):
+                    self.bucket_pos = 100
+            if (key == ord('k')): # j
+                self.bucket_pos -= 1
+                if (self.bucket_pos < 0):
+                    self.bucket_pos = 0
+            
 
         # Velocity data is published as a twist object. The linear x component represents throttle (+/- = forward/backward)
         # The angular z component represents turning (+/- = right/left, 0 = no turn). Turning speed is constant regardless of z magnitude
@@ -119,6 +129,10 @@ class MinimalDriver(Node):
         height_msg = Int16()
         height_msg.data = self.cam_height
         self.cam_height_pub.publish(height_msg)
+
+        bucket_msg = Int16()
+        bucket_msg.data = self.bucket_pos
+        self.bucket_pos_pub.publish(height_msg)
 
 
     # Publishes keyboard inputs

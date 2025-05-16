@@ -30,7 +30,7 @@ class T265Driver(Node):
             durability=2   # Volatile
         )
 
-        self.PUB_odom = self.create_publisher(Odometry, '/odom_raw', self.QOS)
+        self.PUB_odom = self.create_publisher(Odometry, '/odom', self.QOS)
 
         self.init_pose = None
 

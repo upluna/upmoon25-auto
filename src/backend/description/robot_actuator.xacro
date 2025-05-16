@@ -5,7 +5,7 @@
     Linear actuator and camera head
     - Origin of linear actuator is at the point it extends
     -->
-    <link name="actuator_link">
+    <link name="actuator_base_link">
         <origin xyz="0 0 0" />
         <visual>
             <origin xyz="0 0 -${actuator_height / 2}" />
@@ -23,10 +23,29 @@
         <xacro:inertial_box mass="6.0" x="${actuator_size}" y="${actuator_size}" z="${actuator_height}"/>
     </link>
 
-    <joint name="actuator_joint" type="fixed" >
+    <joint name="actuator_base_joint" type="fixed" >
         <parent link="base_link" />
-        <child link="actuator_link" />
+        <child link="actuator_base_link" />
         <origin xyz="0 ${(base_width + actuator_size) / 2} ${actuator_height}" rpy="0 0 0" />
+    </joint>
+
+    <link name="actuator_link">
+        <origin xyz="0 0 0"/>
+        <visual>
+            <origin xyz="0 0 -${actuator_height / 2}" />
+            <geometry>
+                <box size="${actuator_size / 2} ${actuator_size / 2} ${actuator_height}"/>
+            </geometry>
+            <material name="blue" />
+        </visual>
+    </link>
+
+    <joint name="actuator_joint" type="prismatic" >
+        <parent link="actuator_base_link" />
+        <child link="actuator_link" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <axis xyz = "0 0 1"/>
+        <limit effort="1000.0" lower="0" upper="100.0" velocity="0" />
     </joint>
 
     <link name="servo_link">
