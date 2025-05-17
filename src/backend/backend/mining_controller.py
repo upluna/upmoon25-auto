@@ -83,6 +83,7 @@ class MiningController(Node):
         self.run_init = None
 
         self.abort = False
+        self.first = True
 
         self.clock = 0
         self.clock_start = 0
@@ -206,6 +207,14 @@ class MiningController(Node):
 
             self.bucket_vel.data = 0
 
+            if self.first:
+                self.velocity_pub.publish(self.velocity)
+                self.conveyor_pub.publish(self.conveyor)
+                self.bucket_vel_pub.publish(self.bucket_vel)
+                self.bucket_pos_pub.publish(self.bucket_pos)
+
+            self.first = False
+
         elif self.state == MinerState.DRIVE_TO_START:
             distance = self.getDist(self.rec_init)
             self.get_logger().info(f'Distance: {distance}')
@@ -282,12 +291,19 @@ class MiningController(Node):
                 self.state = MinerState.LOWER_BUCKET
                 self.velocity.linear.x = 0.0
 
-        self.velocity_pub.publish(self.velocity)
-        self.conveyor_pub.publish(self.conveyor)
-        self.bucket_vel_pub.publish(self.bucket_vel)
-        self.bucket_pos_pub.publish(self.bucket_pos)
+        if self.state != MinerState.STOPPED:
+            self.velocity_pub.publish(self.velocity)
+            self.conveyor_pub.publish(self.conveyor)
+            self.bucket_vel_pub.publish(self.bucket_vel)
+            self.bucket_pos_pub.publish(self.bucket_pos)
 
         if self.abort:
+
+            self.velocity_pub.publish(self.velocity)
+            self.conveyor_pub.publish(self.conveyor)
+            self.bucket_vel_pub.publish(self.bucket_vel)
+            self.bucket_pos_pub.publish(self.bucket_pos)
+
             rclpy.shutdown()
             self.destroy_node()
 
