@@ -36,7 +36,7 @@ from sensor_msgs.msg import JointState
     actuator_link -> servo_link         - describes camera rotation
 '''
 
-DEBUG = True
+DEBUG = False
 PAN_MAX = 180
 
 PAN_ANG_0 = 0
@@ -79,13 +79,9 @@ class ArduinoDriver(Node):
         sub_cb = MutuallyExclusiveCallbackGroup()
 
         # Flash succesful: now initialize publishers
-        self.sensor_pubs = [
-            self.create_publisher(Float32, '/sensor/ir/right', 1, callback_group=pub_cb),
-            self.create_publisher(Float32, '/sensor/ir/left', 1, callback_group=pub_cb),
-            # Not sure what data type we'll use for these
-            self.create_publisher(Float32, '/sensor/force/right', 1, callback_group=pub_cb),
-            self.create_publisher(Float32, '/sensor/force/left', 1, callback_group=pub_cb)
-        ]
+        self.ir_pub = self.create_publisher(Float32, '/sensor/ir', 1, callback_group=pub_cb)
+
+        self.PUB_campan = self.create_publisher(Int16, '/camera/rgb/pan', 1, callback_group=pub_cb)
 
         # Initialize subscribers
         self.create_subscription(Int8,  '/cmd/pan', self.onPan, 3, callback_group=sub_cb)
@@ -102,7 +98,7 @@ class ArduinoDriver(Node):
         self.pan_state = PanState.STOP
         self.cam_pan = 0 # 0 to PAN_MAX degrees (?)
 
-        self.cam_height = 0
+        self.cam_height = 100
         self.cam_height_tf = 0.0
         self.bucket_height = 0
 
@@ -121,7 +117,7 @@ class ArduinoDriver(Node):
     def handleSerial(self):
         # Now listen for serial input from arduino
         
-        # self.get_logger().info('Tick')
+        #self.get_logger().info('Tick')
         
         if (self.write):
             self.write = False
@@ -132,19 +128,45 @@ class ArduinoDriver(Node):
             bucket_height_pad = str(self.bucket_height).zfill(3)
 
             string = f'{cam_pan_pad}:{cam_height_pad}:{bucket_height_pad}\n'
-            self.get_logger().info(f'Writing {string}')
+            #self.get_logger().info(f'Writing {string}')
             self.ser.write(string.encode())
             self.ser.flush()
-        
-        if DEBUG and self.ser.in_waiting > 0:
+
+        if self.ser.in_waiting > 0:
             datum = self.ser.readline().decode('utf-8').rstrip('\n')
             datum = str(datum)
-            self.get_logger().info(f'ARDUINO: {datum}')
+            if (datum[0] == '#'):
+                self.ir_send(datum)
+            
+            if DEBUG:
+                self.get_logger().info(f'ARDUINO: {datum}')
 
             return 
-
-        return
         
+        return
+    
+    def ir_send(self, data):
+        data = data[1 : ]
+        tokens = data.split(':')
+        right_raw = int(tokens[0])
+        left_raw =  int(tokens[1])
+
+        # Convert raw 0-1023 range to centimeters
+        right = float(right_raw)*(-0.13146) + 90.769
+        left = float(left_raw)*(-0.13146) + 90.769
+
+        # print(left)
+        # print(right)
+
+        right_msg = Float32()
+        left_msg = Float32()
+
+        right_msg.data = right
+        left_msg.data = left
+
+        # Publish a float value in centimeters
+        self.sensor_pubs[0].publish(right_msg)
+        self.sensor_pubs[1].publish(left_msg)
 
     # Updates the cam pan
     def camTick(self):
@@ -159,6 +181,11 @@ class ArduinoDriver(Node):
             self.cam_pan = 0
         elif(self.cam_pan > PAN_MAX):
             self.cam_pan = PAN_MAX
+        
+        # Publish the current camera pan
+        msg = Int16()
+        msg.data = self.cam_pan
+        self.PUB_campan.publish(msg)
 
         # Logic for approximating position of linear servo
         converted_cam_height = (float(self.cam_height) / 100.0) * LIN_SERVO_MAX
@@ -226,7 +253,7 @@ class ArduinoDriver(Node):
             f'-P{port}',
             '-b115200',
             '-D',
-            f'-Uflash:w:/home/upmoon25/ros2/upmoon25-bbot/src/bbot/bbot/arduino/hex/{hex_file}:i'
+            f'-Uflash:w:/home/upmoon25/ros2/upmoon25-auto/src/frontend/frontend/arduino/hex/{hex_file}:i'
         ]
 
         result = subprocess.run(avrdude_cmd, capture_output=True, text=True)

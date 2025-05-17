@@ -6,6 +6,7 @@ import sensor_msgs.msg as sensor_msgs
 import std_msgs.msg as std_msgs
 import nav_msgs.msg as nav_msgs
 import pyrealsense2 as rs
+import cv2
 
 from rclpy.node import Node, QoSProfile
 
@@ -28,8 +29,16 @@ class RGBDriver(Node):
             durability=2   # Volatile
         )
 
+        # TODO change default values
+        self.declare_parameter('publish_raw', False)
+        self.declare_parameter('publish_compressed', True)
+
+        self.publish_compressed = self.get_parameter('publish_compressed').value
+        self.publish_raw = self.get_parameter('publish_raw').value
+
         self.PUB_rgbinfo = self.create_publisher(sensor_msgs.CameraInfo, '/camera/rgb/camera_info', self.QOS)
         self.PUB_rgb = self.create_publisher(sensor_msgs.Image, '/camera/rgb/image_raw', self.QOS)
+        self.PUB_comp = self.create_publisher(sensor_msgs.CompressedImage, '/camera/rgb/image_compressed', self.QOS)
 
         self.cam_info_msg = None # Camera info doesn't change, and we store it so we can keep republishing it
 
@@ -66,13 +75,36 @@ class RGBDriver(Node):
             frame_count += 1
             time=self.get_clock().now().to_msg()
 
+
             if frame_count >= 15:
                 frame_count = 0
                 self.publishCamInfo(intrinsics=None, time=time, frame_id=None)
 
-            self.publishImage(color, time)
+            if self.publish_raw:
+                self.publishImageRaw(color, time)
+            if self.publish_compressed:
+                self.publishImageCompressed(color, time)
+                
 
-    def publishImage(self, frame, time):
+    def publishImageCompressed(self, frame, time):
+        data = np.asanyarray(frame.get_data())
+
+        success, jpeg_data = cv2.imencode('.jpg', data)
+        if not success:
+            return
+        
+        jpeg_bytes = jpeg_data.tobytes()
+
+        msg = sensor_msgs.CompressedImage()
+
+        msg.header = std_msgs.Header(frame_id='rgb_link_optical', stamp=time)
+
+        msg.format = 'jpeg'
+        msg.data = jpeg_bytes #np.frombuffer(jpeg_bytes, dtype=np.int8)
+
+        self.PUB_comp.publish(msg)
+
+    def publishImageRaw(self, frame, time):
             width = frame.get_width()
             height = frame.get_height()
 
@@ -126,8 +158,6 @@ class RGBDriver(Node):
         self.cam_info_msg = msg
 
         self.PUB_rgbinfo.publish(msg)
-
-
 
 
 def main(args=None):

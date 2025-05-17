@@ -57,7 +57,6 @@ class GlobalCostmapper(Node):
         
         data = np.frombuffer(msg.data, dtype=np.int8)
         if (data.size == 0):
-            self.get_logger().info('No data in update')
             return
             
         self.updateCostmap(
@@ -91,7 +90,7 @@ class GlobalCostmapper(Node):
     def updateCostmap(self, obst_map, x_min, x_max, y_min, y_max, stamp):
         points_of_interest = np.where(obst_map == 100.0) # Obstacles
 
-        self.get_logger().info(f'Message dimensions: {x_min}, {x_max}, {y_min}, {y_max}')
+        #self.get_logger().info(f'Message dimensions: {x_min}, {x_max}, {y_min}, {y_max}')
 
         circle_rad = int(ROBOT_RAD * self.map_res)
         buffer_rad = int(circle_rad * ROBOT_BUFFER)
@@ -124,6 +123,8 @@ class GlobalCostmapper(Node):
         self.publishCostMap(stamp)
 
     def publishCostMap(self, stamp):
+
+        self.get_logger().info('Publishing...')
 
         msg = OccupancyGrid()
         info = MapMetaData()

@@ -132,7 +132,7 @@ class MinimalDriver(Node):
 
         bucket_msg = Int16()
         bucket_msg.data = self.bucket_pos
-        self.bucket_pos_pub.publish(height_msg)
+        self.bucket_pos_pub.publish(bucket_msg)
 
 
     # Publishes keyboard inputs

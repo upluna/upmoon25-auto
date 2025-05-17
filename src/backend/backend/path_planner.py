@@ -134,6 +134,8 @@ class PathPlanner(Node):
         
         def distToNearestObstacle(point):
             obstacle_indices = np.array(np.where(self.costmap == 100)) 
+            if (obstacle_indices.size == 0):
+                return 100000
             obstacle_points = obstacle_indices - np.array([[point[0]], [point[1]]]) 
             distances = np.sqrt(obstacle_points[0]**2 + obstacle_points[1]**2)
 
@@ -147,7 +149,8 @@ class PathPlanner(Node):
                 min_dist = 0
             
             # Score increases exponentially as distance to nearest obstacle increases
-            min_dist = (self.costmap_x) / min_dist
+            if min_dist > 0:
+                min_dist = (self.costmap_x) / min_dist
             return ((point[0] - end[0])**2 + (point[1] - end[1])**2)**0.5 + min_dist
 
         start = self.worldToMap(start)
@@ -408,13 +411,6 @@ class PathPlanner(Node):
 
                 self.publishPath(self.simplifyPath(self.curr_path, self.goal.orientation))
                 return
-
-
-
-        
-
-
-
         
 def main():
     rclpy.init()

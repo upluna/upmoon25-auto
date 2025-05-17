@@ -108,7 +108,7 @@ class T265Driver(Node):
         point.y = point.y - self.init_pose.y
         point.z = point.z - self.init_pose.z
 
-        self.get_logger().info(f'ORIENTATION: {np_quat.w}, {np_quat.x}, {np_quat.y}, {np_quat.z}')
+        #self.get_logger().info(f'ORIENTATION: {np_quat.w}, {np_quat.x}, {np_quat.y}, {np_quat.z}')
 
         odom_p = Pose()
         odom_p.position = point

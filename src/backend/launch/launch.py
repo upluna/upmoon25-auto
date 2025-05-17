@@ -24,7 +24,7 @@ def generate_launch_description():
     NAV2_CONFIG = '/home/max/Documents/robotics/sim/src/sim/config/nav2_config.yaml'
 
 
-    xacro_file = "/home/max/Documents/robotics/upmoon25-auto/src/backend/description/robot.urdf.xacro"
+    xacro_file = "/home/upmoon25/ros2/upmoon25-auto/src/backend/description/robot.urdf.xacro"
     robot_description_raw = xacro.process_file(xacro_file).toxml()
     
     node_robot_state_publisher = Node(
@@ -35,18 +35,7 @@ def generate_launch_description():
         'robot_description': robot_description_raw,
         'use_sim_time': True}]
     )
-    
- 
-    gazebo = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('gazebo_ros'), 'launch'), '/gazebo.launch.py']),
-        )
- 
- 
-    spawn_entity = Node(package='gazebo_ros', executable='spawn_entity.py',
-                    arguments=['-topic', 'robot_description',
-                                '-entity', 'my_bot'],
-                    output='screen')    
+   
     
     map_odom_tf = Node(
         package='tf2_ros',
@@ -62,6 +51,15 @@ def generate_launch_description():
         executable='static_transform_publisher',
         arguments=[
             '0', '0', '0', '0', '0', '0',
+            'odom', 'base_link'
+        ]
+    )
+
+    odom_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=[
+            '0', '0', '0', '0', '0', '1',
             'odom', 'base_link'
         ]
     )
@@ -94,11 +92,32 @@ def generate_launch_description():
         package='backend',
         executable='head_controller',
         output='screen',
+        parameters=[{
+            'use_sim_data': False
+        }]
     )
 
     localizer = Node(
         package='backend',
         executable='localizer',
+        output='screen'
+    )
+
+    t265_driver = Node(
+        package='frontend',
+        executable='t265_driver',
+        output='screen'
+    )
+
+    arduino_driver = Node(
+        package='frontend',
+        executable='arduino_driver',
+        output='screen'
+    )
+
+    rgb_driver = Node(
+        package='frontend',
+        executable='rgb_driver',
         output='screen'
     )
 
@@ -108,10 +127,14 @@ def generate_launch_description():
         #spawn_entity,
         odom_base_link_tf,
         map_odom_tf,
-        #localizer,
+        arduino_driver,
+        rgb_driver,
+        localizer,
+        odom_tf,
         #mapper,
         #costmapper,
         #path_planner,
-        #head_controller,
+        head_controller,
+        t265_driver,
         #motion_controller
     ])

@@ -14,7 +14,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from enum import Enum
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
-from std_msgs.msg import Header, ColorRGBA, String, Int8
+from std_msgs.msg import Header, ColorRGBA, String, Int16, Int8
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Pose, Vector3, Point, Quaternion, PoseStamped
 from builtin_interfaces.msg import Duration
@@ -25,10 +25,6 @@ from interfaces.srv import FindTag
 
 RGB_IMG_TOPIC   = '/camera/rgb/image_raw'
 RGB_INFO_TOPIC  = '/camera/rgb/camera_info'
-
-# This is a total mystery to me. For some reason, I have to divide the tag size by this factor
-# for the pose estimation to work. Could break for real world testing
-TAG_SIZE = 0.5 / 1.79690835
 
 
 IMG_TOLERANCE = 40     # How much we allow the center of the tag to be from the center of the camera (pixels)
@@ -71,8 +67,6 @@ class HeadController(Node):
     def __init__(self):
         super().__init__('head_controller')
 
-
-
         self.state = State.WAITING_CAMINFO
 
         self.bridge = CvBridge()
@@ -83,7 +77,9 @@ class HeadController(Node):
 
         if not self.sim:
             # For the real world tag
-            TAG_SIZE = 0.35878
+            self.tag_size = 0.28448
+        else:
+            self.tag_size = 0.5 / 1.79690835
 
         # This is special for Gazebo - subscriber QOS must match publisher QOS
         self.QOS = QoSProfile(
@@ -106,12 +102,15 @@ class HeadController(Node):
 
         self.tag_pose_found = None
         self.found_tag = False
+        self.last_img_received = None
 
         self.srv = self.create_service(FindTag, 'find_tag', self.serviceFindTag, callback_group=self.cb_group)
         self.condition = Condition()
 
         self.subscriber_caminfo = self.create_subscription(
             CameraInfo, RGB_INFO_TOPIC, self.onInfo, self.QOS)
+        
+        self.create_subscription(Int16, '/camera/rgb/pan', self.onPan, 1)
         
         if self.sim:
             self.cmd_publisher = self.create_publisher(String, '/cmd_servo', 1)
@@ -128,8 +127,13 @@ class HeadController(Node):
 
         self.prev_direction = ServoCMD.RIGHT
 
+        self.cam_pan = 0
+
         self.get_logger().info("Successful initialization")
         self.get_logger().info("Waiting for camera info....")
+
+    def onPan(self, msg):
+        self.cam_pan = msg.data
 
     # With the default executor (MultiThreadedExecutor), this callback runs on
     # a separate thread of execution
@@ -160,6 +164,7 @@ class HeadController(Node):
         # Reset after service
         self.state = State.WAITING_REQUEST
         self.tag_pose_found = None
+        self.found_tag = False
 
         return response
 
@@ -175,9 +180,9 @@ class HeadController(Node):
 
             if cmd == ServoCMD.LEFT:
                 msg.data = 1
-            if cmd == ServoCMD.RIGHT:
+            elif cmd == ServoCMD.RIGHT:
                 msg.data = -1
-            else:
+            elif cmd == ServoCMD.STOP:
                 msg.data = 0
 
             self.cmd_publisher.publish(msg)
@@ -204,12 +209,18 @@ class HeadController(Node):
 
 
     def onImg(self, msg):
+        self.last_img_received = msg
         # We only care about the camera info if we're servicing a request
         if (self.found_tag):
             return
         if (not self.state == State.SERVICING):
             self.sendServoCMD(ServoCMD.STOP)
             return
+
+        if (self.cam_pan <= 0):
+            self.sendServoCMD(ServoCMD.RIGHT)
+        elif (self.cam_pan >= 180):
+            self.sendServoCMD(ServoCMD.LEFT)
         
         detection = self.detectTag(msg)
         time = self.get_clock().now().to_msg()
@@ -234,33 +245,35 @@ class HeadController(Node):
         self.foundTag(detection, time)
 
     def detectTag(self, img):
-        cv_rgb_img = self.bridge.imgmsg_to_cv2(img_msg=img, desired_encoding='passthrough')
-        cv_rgb_img = cv2.cvtColor(cv_rgb_img, cv2.COLOR_BGR2GRAY)
-        cv_rgb_img = cv_rgb_img.astype(np.uint8)
 
-        detections = self.detector.detect(
-            img=cv_rgb_img,
-            estimate_tag_pose=True,
-            camera_params=(self.cam_mtx[0][0], self.cam_mtx[0][2], self.cam_mtx[1][1], self.cam_mtx[1][2]),
-            tag_size = TAG_SIZE
-            )
+        def getDetections(image):
+            cv_rgb_img = self.bridge.imgmsg_to_cv2(img_msg=image, desired_encoding='passthrough')
+            cv_rgb_img = cv2.cvtColor(cv_rgb_img, cv2.COLOR_BGR2GRAY)
+            cv_rgb_img = cv_rgb_img.astype(np.uint8)
+
+            return self.detector.detect(
+                img=cv_rgb_img,
+                estimate_tag_pose=True,
+                camera_params=(self.cam_mtx[0][0], self.cam_mtx[0][2], self.cam_mtx[1][1], self.cam_mtx[1][2]),
+                tag_size = self.tag_size
+                )
+        
+        detections = getDetections(img)
         
         if len(detections) > 0:
             self.found_tag = True
             self.get_logger().info("Sleep")
             self.sendServoCMD(ServoCMD.STOP)
             # Sleep a little to let servo catch up
-            time.sleep(0.8)
+            time.sleep(1.65)
             self.get_logger().info("Done")
         else:
             return None
 
-        detections = self.detector.detect(
-            img=cv_rgb_img,
-            estimate_tag_pose=True,
-            camera_params=(self.cam_mtx[0][0], self.cam_mtx[0][2], self.cam_mtx[1][1], self.cam_mtx[1][2]),
-            tag_size = TAG_SIZE
-            )
+        if (self.last_img_received != None):
+            detections = getDetections(self.last_img_received)
+
+        self.last_img_received = None
 
         for detection in detections:
             return detection
@@ -272,6 +285,8 @@ class HeadController(Node):
     def foundTag(self, detection, stamp):
 
         self.get_logger().info("Found tag")
+
+        self.get_logger().info(f'Raw pos: {detection.pose_t}')
 
         transform = None
         if DO_TRANSFORM:
@@ -328,6 +343,11 @@ class HeadController(Node):
         print(tag_e)
         tag_e = R.from_euler('xyz', [0,0,np.pi - tag_e[0]])
         tag_q = tag_e.as_quat()
+
+        #tag_e = (R.from_matrix(detection.pose_R)).as_euler('xyz')
+        #print(tag_e)
+        #tag_e = R.from_euler('xyz', [np.pi / 2 - tag_e[2],tag_e[1],np.pi - tag_e[0]])
+        #tag_q = tag_e.as_quat()
 
         pose.orientation.x = tag_q[0]
         pose.orientation.y = tag_q[1]

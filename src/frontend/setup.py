@@ -32,7 +32,8 @@ setup(
             'kb_controller = frontend.keyboard_driver:main',
             'rgb_driver = frontend.rgb_driver:main',
             't265_driver = frontend.t265_driver:main',
-            'depth_driver = frontend.depth_driver:main'
+            'depth_driver = frontend.depth_driver:main',
+            'rgb_transport = frontend.rgb_transport:main'
         ],
     },
 )

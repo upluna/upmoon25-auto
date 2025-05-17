@@ -21,4 +21,28 @@ def generate_launch_description():
             name='rgb_driver',
             output='screen'
         ),
+        Node(
+            package='frontend',
+            executable='conveyor',
+            name='conveyor',
+            output='screen'
+        ),
+        Node(
+            package='frontend',
+            executable='bucket_spin',
+            name='bucket_spin',
+            output='screen'
+        ),
+        Node(
+            package='frontend',
+            executable='t265_driver',
+            name='t265_driver',
+            output='screen'
+        ),
+        Node(
+            package='frontend',
+            executable='depth_driver',
+            name='depth_driver',
+            output='screen'
+        ),
     ])

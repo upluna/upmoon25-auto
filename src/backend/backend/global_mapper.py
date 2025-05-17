@@ -9,14 +9,15 @@ from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import PointCloud2
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Pose, Vector3
-from nav_msgs.msg import OccupancyGrid, MapMetaData
+from nav_msgs.msg import OccupancyGrid, MapMetaData, Odometry
 from map_msgs.msg import OccupancyGridUpdate
-from std_msgs.msg import Header, Int8
+from std_msgs.msg import Header, Int8, Float32
 from scipy.interpolate import griddata
 
-OBS_MAX_Z = 0.78
-OBS_MIN_Z = 0.64
+OBS_MAX_Z = 0.12
+OBS_MIN_Z = -0.35
 DEBUG = True
+HEIGHTMAP = False
 
 '''
     Generates an occupancy map of the arena based on incoming pointcloud data.
@@ -95,6 +96,7 @@ class GlobalMapper(Node):
         # Setup subscribers and publishers
         self.SUB_depth  = self.create_subscription(PointCloud2, '/camera/depth/points', callback=self.handleDepth, qos_profile=self.QOS, callback_group=sub_group)
         self.SUB_cmd    = self.create_subscription(Int8, '/cmd_map', callback=self.handleCmd, qos_profile=self.QOS, callback_group=sub_group)
+        self.SUB_roboz  = self.create_subscription(Float32, '/robo_z', callback=self.handleRoboZ, qos_profile=self.QOS, callback_group=sub_group)
         #self.SUB_mapcmd = self.create_subscription(MapCmd, '/cmd_map', callback=self.handleCmd, qos_profile=self.QOS, callback_group=sub_group)
 
         self.PUB_global = self.create_publisher(OccupancyGrid, '/map/global', qos_profile=self.NAV_QOS)
@@ -103,10 +105,17 @@ class GlobalMapper(Node):
         # Map update clock
         self.timer = self.create_timer(self.HZ, self.clk)
 
+        # Robot's z position in the world relative to the tag
+        self.robot_z = 0.0
+        self.static_map_odom_tf = None
+
         self.get_logger().info("Initialized")
 
     def clk(self):
         self.update = True
+
+    def handleRoboZ(self, msg):
+        self.robot_z = msg.data
 
     # Returns the transform from the depth frame to the specified frame
     def getTransform(self, frame, stamp):
@@ -167,10 +176,25 @@ class GlobalMapper(Node):
 
     def detectObstacles(self):
         # We compare the obstacles relative to the robot position
-        grid_mask = (self.grid == 0.0)
-        self.grid = self.grid  + (0.95 - 0.062) # rad / 2 - wheel height
-                                                # TODO make this a parameter
-        self.grid[grid_mask] = 0.0
+        #grid_mask = (self.grid == 0.0)
+        #self.grid[grid_mask] = 0.0
+
+        if DEBUG:
+            gridmax = self.grid.max()
+            gridmin = self.grid.min()
+            self.get_logger().info(f'MIN: {gridmin}, MAX: {gridmax}')            
+            self.get_logger().info(f'ROBO Z: {self.robot_z}')
+
+        if HEIGHTMAP:
+            gridmax = self.grid.max()
+            gridmin = self.grid.min()
+            self.get_logger().info(f'MIN: {gridmin}, MAX: {gridmax}')
+            range = abs(gridmax - gridmin)
+
+            self.grid += abs(gridmin)
+            self.grid *= (100.0 / range)
+            
+            return
 
         # Mark known spots
         self.obstacle_map[(self.grid != 0.0) & (self.obstacle_map != 100.0)] = 0.0
@@ -219,12 +243,16 @@ class GlobalMapper(Node):
 
         self.detectObstacles()
         
+        
         if (self.first_gen):
             self.first_gen = False
             self.publishObstacleMap(stamp)
         else:
             self.publishObstacleMapUpdate(stamp, x_min, x_max, y_min, y_max)
         
+
+        #self.publishObstacleMap(stamp)
+
         self.update = False
 
     def handleCmd(self, msg):
@@ -283,8 +311,12 @@ class GlobalMapper(Node):
         msg.width  = int(x_max - x_min)
         msg.height = int(y_max - y_min)
 
-        data = self.obstacle_map[x_min : x_max, y_min : y_max].flatten(order='C')
-        
+        data = None
+        if HEIGHTMAP:
+            data = self.grid[x_min : x_max, y_min : y_max].flatten(order='C')
+        else:
+            data = self.obstacle_map[x_min : x_max, y_min : y_max].flatten(order='C')
+
         msg.data = np.round(data).astype(np.int8).tolist()
         self.PUB_update.publish(msg)
 
@@ -306,7 +338,11 @@ class GlobalMapper(Node):
         info.origin.orientation.z = quat.z
         info.origin.orientation.w = quat.w
 
-        data = self.obstacle_map.flatten(order='C')
+        data = None
+        if HEIGHTMAP:
+            data = self.grid.flatten(order='C')
+        else:
+            data = self.obstacle_map.flatten(order='C')
         
         msg.data = np.round(data).astype(np.int8).tolist()
         msg.info = info

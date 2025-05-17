@@ -93,6 +93,8 @@ class MotionController(Node):
 
         self.do_log = True
 
+        self.transform = None # map -> odom
+
         self.srv_cond = Condition()
 
     def sendStop(self):
@@ -113,105 +115,116 @@ class MotionController(Node):
         rot_ang = math.acos(dot)
         rot_axis = np.cross(forward, vec)
 
-        return quaternion.from_rotation_vector(rot_ang * rot_axis)            
+        return quaternion.from_rotation_vector(rot_ang * rot_axis)  
+
+    # Gets the robots position in the map frame
+    def getRobotMapPose(self, odom):
+        # Get the transform from odom to map
+        while (self.transform == None):
+            self.transform = self.lookupTransform('map', 'odom')
+
+        transformed_pose = tf2_geometry_msgs.do_transform_pose(odom.pose.pose, self.transform) 
+        return transformed_pose          
 
     def onOdom(self, msg):
-        if (self.state != State.ROTATE and self.state != State.LINEAR):
-            return
-                        
-        goal_pose = self.curr_path[self.goal_idx]
-        
-        curr_orientation = msg.pose.pose.orientation
-        curr_position = msg.pose.pose.position
+        try:
+            if (self.state != State.ROTATE and self.state != State.LINEAR):
+                return
+                            
+            goal_pose = self.curr_path[self.goal_idx]
 
-        ang_z = 0.0
-        lin_x = 0.0
 
-        goal_quat = None
+            robo_map_pose = self.getRobotMapPose(msg)
+            curr_orientation = robo_map_pose.orientation
+            curr_position = robo_map_pose.position
 
-        curr_quat = quaternion.from_float_array([curr_orientation.x, curr_orientation.y, curr_orientation.z, curr_orientation.w])
-        curr_euler = quaternion.as_euler_angles(curr_quat)
-        curr_yaw = curr_euler[1]
-
-        if (self.state == State.ROTATE):
-            goal_quat = quaternion.from_float_array([goal_pose.orientation.x, goal_pose.orientation.y, goal_pose.orientation.z, goal_pose.orientation.w])
-            goal_euler = quaternion.as_euler_angles(goal_quat)
-            goal_yaw = goal_euler[1]
+            ang_z = 0.0
             lin_x = 0.0
 
-            dx = math.cos(goal_yaw)
-            dy = math.sin(goal_yaw)
+            goal_quat = None
 
-            bx = math.cos(curr_yaw)
-            by = math.sin(curr_yaw)  
+            curr_quat = quaternion.from_float_array([curr_orientation.x, curr_orientation.y, curr_orientation.z, curr_orientation.w])
+            curr_euler = quaternion.as_euler_angles(curr_quat)
+            curr_yaw = curr_euler[1]
 
-            theta = math.atan2(dx*by - dy*bx, dx*bx + dy*by)    
-
-            #diff = goal_yaw - curr_yaw
-
-            if self.do_log:
-                self.get_logger().info(f'GOAL: {theta} CURR: {curr_yaw}')
-
-                do_log = False
+            if curr_quat.y < 0:
+                curr_yaw = - curr_yaw
 
 
-            # Otherwise, rotate accordingly
-            if (abs(theta) > 0.05):
-                if (theta < 0):
-                    ang_z = -self.ROT_SPEED
+            if (self.state == State.ROTATE):
+                goal_quat = quaternion.from_float_array([goal_pose.orientation.x, goal_pose.orientation.y, goal_pose.orientation.z, goal_pose.orientation.w])
+                goal_euler = quaternion.as_euler_angles(goal_quat)
+                goal_yaw = goal_euler[1]
+
+                if goal_quat.y < 0:
+                    goal_yaw = -goal_yaw
+        
+                lin_x = 0.0
+
+                dx = math.sin(goal_yaw)
+                dy = math.cos(goal_yaw)
+
+                bx = math.sin(curr_yaw)
+                by = math.cos(curr_yaw)  
+
+                theta = math.atan2(dx*by - dy*bx, dx*bx + dy*by)    
+                    
+                # Otherwise, rotate accordingly
+                if (abs(theta) > 0.05):
+                    if (theta < 0):
+                        ang_z = self.ROT_SPEED
+                    else:
+                        ang_z = -self.ROT_SPEED
                 else:
-                    ang_z = self.ROT_SPEED
-            else:
-                ang_z = 0.0
+                    ang_z = 0.0
 
-            # Check if we are within the tolerance
-            if (abs(theta) < self.YAW_TOLERANCE):
-                self.get_logger().info('Rotated to goal orientation')
-                self.sendStop()
-                self.nextPose()
-        elif (self.state == State.LINEAR):
-            # Find the header from our current position to the goal position
-            dx = goal_pose.position.x - curr_position.x
-            dy = goal_pose.position.y - curr_position.y
-            v_length = math.sqrt(dx**2 + dy**2)
-            dx /= v_length
-            dy /= v_length
+                # Check if we are within the tolerance
+                if (abs(theta) < self.YAW_TOLERANCE):
+                    self.get_logger().info('Rotated to goal orientation')
+                    self.sendStop()
+                    self.nextPose()
+            elif (self.state == State.LINEAR):
+                # Find the header from our current position to the goal position
+                dx = goal_pose.position.x - curr_position.x
+                dy = goal_pose.position.y - curr_position.y
 
-            bx = math.cos(curr_yaw)
-            by = math.sin(curr_yaw)  
+                v_length = math.sqrt(dx**2 + dy**2)
+                dx /= v_length
+                dy /= v_length
 
-            theta = math.atan2(dx*by - dy*bx, dx*bx + dy*by)    
+                # Convert our header to a vector
+                bx = math.cos(curr_yaw)
+                by = math.sin(curr_yaw)
 
-            if abs(theta) > 0.1:
-                if (theta < 0):
-                    ang_z = -self.ROT_SPEED
+                cross = dx*by - dy*bx
+
+                theta = cross
+                if abs(theta) > 0.1:
+                    if (theta < 0):
+                        ang_z = -self.ROT_SPEED
+                    else:
+                        ang_z = self.ROT_SPEED
                 else:
-                    ang_z = self.ROT_SPEED
-            else:
-                ang_z = 0.0
-                
-            if self.do_log:
-
-                self.get_logger().info(f'GOAL_YAW = {theta} CURR_YAW= {curr_yaw}')
-
-                self.do_log = False
-
-            # Check if we are within the tolerance
-            if (abs(curr_position.x - goal_pose.position.x) < self.XZ_TOLERANCE and
-                abs(curr_position.y - goal_pose.position.y) < self.XZ_TOLERANCE):
-                self.get_logger().info('Reached goal position')
-                self.sendStop()
-                self.nextPose()
-                return
-            else:
-                # Otherwise, move accordingly. We assume the robot is always facing the goal, so just go forward
-                lin_x = self.LINEAR_SPEED
+                    ang_z = 0.0
+                    
+                # Check if we are within the tolerance
+                if (abs(curr_position.x - goal_pose.position.x) < self.XZ_TOLERANCE and
+                    abs(curr_position.y - goal_pose.position.y) < self.XZ_TOLERANCE):
+                    self.get_logger().info('Reached goal position')
+                    self.sendStop()
+                    self.nextPose()
+                    return
+                else:
+                    # Otherwise, move accordingly. We assume the robot is always facing the goal, so just go forward
+                    lin_x = self.LINEAR_SPEED
 
 
-        msg = Twist()
-        msg.angular.z = ang_z
-        msg.linear.x = lin_x
-        self.PUB_vel.publish(msg)
+            msg = Twist()
+            msg.angular.z = ang_z
+            msg.linear.x = lin_x
+            self.PUB_vel.publish(msg)
+        except Exception as e:
+            self.get_logger().error(str(e))
         
             
     def nextPose(self):
@@ -223,31 +236,30 @@ class MotionController(Node):
             self.state = State.ROTATE
             return self.curr_path[self.goal_idx]
             
-        # Check if we are at the end of the path
-        if (self.goal_idx >= len(self.curr_path)):
-            self.get_logger().info('Finished path')
-            self.state = State.FINISHED
-            self.goal_idx = -1
-            self.curr_path = []
-
-            self.sendStop()
-
-            self.srv_cond.notify()
-            return
-        
         # Intermediate poses
         if (self.state == State.ROTATE):
             self.state = State.LINEAR
             self.goal_idx += 1
+
+            # Check if at end of path
+            if (self.goal_idx >= len(self.curr_path)):
+                self.get_logger().info('Finished path')
+                self.state = State.FINISHED
+                self.goal_idx = -1
+                self.curr_path = []
+
+                self.sendStop()
+
+                with self.srv_cond:
+                    self.state = State.FINISHED
+                    self.srv_cond.notify()
+                return
+            
             self.get_logger().info('Moving to next pose')
             return self.curr_path[self.goal_idx]
         
         self.state = State.ROTATE
-        return self.curr_path[self.goal_idx]
-
-
-        
-
+        return self.curr_path[self.goal_idx]   
 
     def updatePath(self, poses):
         self.curr_path = []
@@ -262,7 +274,8 @@ class MotionController(Node):
 
         # Transform the poses to the odom frame
         for pose in poses:
-            self.curr_path.append(tf2_geometry_msgs.do_transform_pose(pose.pose, transform))
+            #self.curr_path.append(tf2_geometry_msgs.do_transform_pose(pose.pose, transform))
+            self.curr_path.append(pose.pose)
 
 
     def onPath(self, msg):
@@ -287,6 +300,14 @@ class MotionController(Node):
         goal_pose.position.y = request.goal_y
         goal_pose.position.z = 0.0
         goal_pose.orientation = Quaternion()
+
+        # Rotation about z quaternion
+        quat = quaternion.from_euler_angles(0.0, 0.0, request.goal_yaw)
+        goal_pose.orientation.x = quat.x
+        goal_pose.orientation.y = quat.y
+        goal_pose.orientation.z = quat.z
+        goal_pose.orientation.w = quat.w
+
         self.PUB_goal.publish(goal_pose)
         
         with self.srv_cond:

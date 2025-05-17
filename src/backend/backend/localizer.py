@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node, QoSProfile
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Int8
+from std_msgs.msg import Int8, Float32
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros.transform_broadcaster import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped, PoseWithCovariance
@@ -47,6 +47,8 @@ class Localizer(Node):
         self.map_odom_tf = None # Transform from map to odom, which we use to convert AprilTag estimates to odom
 
         self.PUB_odom = self.create_publisher(Odometry, '/odom_true', self.QOS)
+        self.PUB_robo_z = self.create_publisher(Float32, '/robo_z', self.QOS)
+
         self.SUB_odom = self.create_subscription(Odometry, '/odom', self.onOdom, self.QOS)
         self.SUB_cmd = self.create_subscription(Int8, '/cmd_localizer', self.onCMD, self.QOS)
 
@@ -63,8 +65,15 @@ class Localizer(Node):
         self.curr_translation[2] = msg.pose.pose.position.z
 
 
+        self.publishRoboZ(msg)
         self.publishOdom(msg)
         self.publishOdomBaseLinkTransform(msg.header.stamp)
+
+    def publishRoboZ(self, msg):
+        new_msg = Float32()
+        new_msg.data = msg.pose.pose.position.z + self.z_offset
+
+        self.PUB_robo_z.publish(new_msg)
 
     def publishOdom(self, msg):
         msg.header.frame_id = 'odom'
@@ -89,6 +98,8 @@ class Localizer(Node):
         translate = quaternion.rotate_vectors(quat_conj, translate)
 
         self.get_logger().info(f'Received {translate}')
+        self.get_logger().info(f'Received rot {quat_conj}')
+
         self.get_logger().info(f'Base is {self.map_odom_tf.translation}')
 
         real_pos = np.array([
@@ -104,6 +115,8 @@ class Localizer(Node):
 
         self.last_real_pos = real_pos
         self.get_logger().info(f'Curr translation: {self.curr_translation}')
+        self.get_logger().info(f'Curr rotation: {self.curr_rotation}')
+
 
         self.odom_offset[0] = real_pos[0] - self.curr_translation[0]
         self.odom_offset[1] = real_pos[1] - self.curr_translation[1]
@@ -173,10 +186,7 @@ class Localizer(Node):
 
         self.map_odom_tf = t.transform
 
-
-
     def onFindTag(self, future):
-        self.get_logger().info("hai :3")
         if not self.active:
             return
         

@@ -28,6 +28,7 @@ setup(
             'main_controller = backend.main_controller:main',
             'motion_controller = backend.motion_controller:main',
             'global_mapper = backend.global_mapper:main',
+            'global_mapper_edge = backend.global_mapper_edge:main',
             'global_costmapper = backend.global_costmapper:main',
             'path_planner = backend.path_planner:main',
             'test_path_plan = backend.test_path_planner:main',

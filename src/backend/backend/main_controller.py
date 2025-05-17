@@ -4,7 +4,8 @@ import os
 from enum import Enum
 from rclpy.node import Node, QoSProfile
 from std_msgs.msg import Int8, Header
-from interfaces.srv import FindTag
+from interfaces.srv import FindTag, GoTo
+from geometry_msgs.msg import Pose, Quaternion
 
 
 '''
@@ -49,6 +50,43 @@ class FindTagCommand(Command):
         response = self.cli.call(request)
 
         self.get_logger().info(f'Response: {response}')
+
+class GoToCommand(Command):
+
+    def __init__(self):
+        super().__init__(name='goto')
+
+        self.cli = None
+
+    def onLink(self):
+        self.cli = self.node.create_client(GoTo, 'goto')
+
+    def execute(self, args):
+        if len(args) < 2:
+            self.node.get_logger().error("Requires at least 2 arguments (x, y)")
+            return
+        
+        if not self.cli.wait_for_service(timeout_sec=0.04):
+            self.node.get_logger().error('Service not available')
+            return
+        
+        x = float(args[0])
+        y = float(args[1])
+        ang = 0.0
+
+        if len(args) > 2:
+            ang = float(args[2])
+
+        req = GoTo.Request()
+
+        req.goal_x = x
+        req.goal_y = y
+        req.goal_yaw = ang
+
+        self.node.get_logger().info('Sent request')
+        response = self.cli.call(req)
+        self.node.get_logger().info(f'Response: {response}')
+
 
 class MapCommand(Command):
 
@@ -121,6 +159,8 @@ class MainController(Node):
         self.registerNewCommand(MapCommand())
         self.registerNewCommand(FindTagCommand())
         self.registerNewCommand(LocalizeCommand())
+        self.registerNewCommand(GoToCommand())
+
 
         self.get_logger().info("Initialized")
 
