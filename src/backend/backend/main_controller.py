@@ -70,7 +70,7 @@ class Miner(Command):
         msg.header.frame_id = args[0]
         msg.pose.position = Point()
         
-        if (args[0] == 'mark' or args[0] == 'recdump'):
+        if (args[0] == 'mark' or args[0] == 'recdump' or args[0] == 'recinit'):
             if len(args) < 2:
                 self.node.get_logger().error(f'Missing distance arg')
                 return

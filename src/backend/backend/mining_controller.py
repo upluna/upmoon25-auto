@@ -3,9 +3,9 @@ import numpy as np
 import quaternion
 
 from rclpy.node import Node, QoSProfile
-from geometry_msgs.msg import Pose, PoseStamped, Vector3, Twist
+from geometry_msgs.msg import Pose, PoseStamped, Vector3, Twist, Quaternion
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Int16, Int8
+from std_msgs.msg import Int16, Int8, ColorRGBA
 from visualization_msgs.msg import Marker
 from enum import Enum
 
@@ -48,12 +48,15 @@ class MiningController(Node):
         self.create_subscription(Odometry, '/odom', self.onOdom, self.QOS)
 
         self.PUB_marker = self.create_publisher(Marker, '/miner_marker', self.QOS)
-        self.timer = self.create_timer(CLK, self.state_check)
+        #self.timer = self.create_timer(CLK, self.state_check)
 
         self.velocity_pub = self.create_publisher(Twist, 'cmd/velocity', 10)
         self.conveyor_pub = self.create_publisher(Int16, 'cmd/conveyor', 10)
         self.bucket_vel_pub = self.create_publisher(Int16, 'cmd/bucket_vel', 10)
         self.bucket_pos_pub = self.create_publisher(Int16, 'cmd/bucket_pos', 10)
+
+        self.rec_init = None
+        self.rec_dump = None
 
         self.forward = np.array([1.0, 0.0, 0.0])
         self.pos     = np.array([0.0 ,0.0 ,0.0])
@@ -61,7 +64,6 @@ class MiningController(Node):
         self.state = MinerState.STOPPED
 
     def onOdom(self, msg):
-        self.get_logger().info("Hey")
         msg = msg.pose.pose
         odom_quat = quaternion.from_float_array([
             msg.orientation.w,
@@ -72,9 +74,9 @@ class MiningController(Node):
 
         self.forward = quaternion.rotate_vectors(odom_quat, [1.0, 0.0, 0.0])
 
-        self.pos[0] = msg.translation.x
-        self.pos[1] = msg.translation.y
-        self.pos[2] = msg.translation.z
+        self.pos[0] = msg.position.x
+        self.pos[1] = msg.position.y
+        self.pos[2] = msg.position.z
 
     def onCmd(self, msg):
         cmd_name = msg.header.frame_id
@@ -93,10 +95,18 @@ class MiningController(Node):
             self.state = MinerState.STOPPED
 
     def onRecInit(self, pose):
-        ...
+        dist = pose.position.x
+        new_forward = self.forward * dist
+
+        self.rec_init = self.pos + new_forward
+
 
     def onRecDump(self, pose):
-        ...
+        dist = pose.position.x
+        new_forward = self.forward * dist
+
+        self.rec_dump = self.pos + new_forward
+
 
     def onMark(self, pose):
         dist = pose.position.x
@@ -106,20 +116,38 @@ class MiningController(Node):
 
         msg = Marker()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = '/odom'
+        msg.header.frame_id = 'odom'
 
+        msg.type=0
         msg.id = 1
         msg.action = 0
+        msg.ns = "fuck"
+
+        msg.color = ColorRGBA()
+        msg.color.r = 1.0
+        msg.color.g = 0.0
+        msg.color.b = 0.0
+        msg.color.a = 1.0
 
         msg.pose = Pose()
-        msg.pose.x = marker_pos[0]
-        msg.pose.y = marker_pos[1]
-        msg.pose.z = marker_pos[2]
+        msg.pose.position.x = marker_pos[0]
+        msg.pose.position.y = marker_pos[1]
+        msg.pose.position.z = marker_pos[2] + 1.5
+
+        msg.pose.orientation = Quaternion()
+        np_quat = quaternion.from_euler_angles(0, np.pi / 2, 0)
+        msg.pose.orientation.x = np_quat.x
+        msg.pose.orientation.y = np_quat.y
+        msg.pose.orientation.z = np_quat.z
+        msg.pose.orientation.w = np_quat.w
+
+
+        self.get_logger().info(f'Marker pos: {msg.pose.position}')
 
         msg.scale = Vector3()
-        msg.scale.x = 0.1
-        msg.scale.y = 0.1
-        msg.scale.z = 0.1
+        msg.scale.x = 1.5
+        msg.scale.y = 0.075
+        msg.scale.z = 0.075
 
         msg.frame_locked = True
 
