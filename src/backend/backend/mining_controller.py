@@ -1,7 +1,7 @@
 import rclpy
 import numpy as np
 import quaternion
-import time
+import math
 
 from rclpy.node import Node, QoSProfile
 from geometry_msgs.msg import Pose, PoseStamped, Vector3, Twist, Quaternion
@@ -79,6 +79,9 @@ class MiningController(Node):
 
         self.rec_init = None
         self.rec_dump = None
+        self.run_init = None
+
+        self.abort = False
 
         self.clock = 0
 
@@ -115,7 +118,9 @@ class MiningController(Node):
             self.onRecDump(msg.pose)
         elif cmd_name == 'run':
             self.state = MinerState.DRIVE_TO_START
-        elif cmd_name == 'stop':
+            self.run_init = self.pos
+        elif cmd_name == 'abort':
+            self.abort = True
             self.state = MinerState.STOPPED
 
     def onIR(self, msg):
@@ -180,6 +185,13 @@ class MiningController(Node):
 
         self.PUB_marker.publish(msg)
 
+    # p is a pose
+    def getDist(self, p):
+        return math.sqrt(
+            (self.pos[0] - p[0])**2 +
+            (self.pos[1] - p[1])**2 
+        )
+
     def state_check(self):
         self.clock += CLK
         if self.state == MinerState.STOPPED:
@@ -188,10 +200,20 @@ class MiningController(Node):
 
             self.conveyor.data = 0
 
+            self.bucket_pos.data = 0
+
             self.bucket_vel.data = 0
 
         elif self.state == MinerState.DRIVE_TO_START:
-            ...
+            distance = self.getDist(self.rec_init)
+            self.get_logger().info(f'Distance: {distance}')
+
+            self.velocity.linear.x = 1.0
+
+            if distance <= 0.1:
+                self.get_logger().info("Completed start drive")
+                self.state = MinerState.LOWER_BUCKET
+                self.velocity.linear.x = 0.0
         elif self.state == MinerState.LOWER_BUCKET:
             self.bucket_vel.data = 100 # full speed !!
             self.bucket_pos.data = BUCKET_LOWERED_POS
@@ -205,16 +227,36 @@ class MiningController(Node):
         elif self.state == MinerState.DIG:
             self.velocity.linear.x = DIG_SPEED
         elif self.state == MinerState.DRIVE_TO_DUMP:
-            ...
+            distance = self.getDist(self.rec_dump)
+            self.get_logger().info(f'Distance: {distance}')
+
+            self.velocity.linear.x = 1.0
+
+            if distance <= 0.1:
+                self.get_logger().info("Completed dump drive")
+                self.state = MinerState.DUMP
+                self.velocity.linear.x = 0.0
         elif self.state == MinerState.DUMP:
             ...
         elif self.state == MinerState.DRIVE_TO_DIG:
-            ...
+            distance = self.getDist(self.rec_init)
+            self.get_logger().info(f'Distance: {distance}')
+
+            self.velocity.linear.x = -1.0
+
+            if distance <= 0.1:
+                self.get_logger().info("Completed dig drive")
+                self.state = MinerState.DRIVE_TO_DUMP
+                self.velocity.linear.x = 0.0
 
         self.velocity_pub.publish(self.velocity)
         self.conveyor_pub.publish(self.conveyor)
         self.bucket_vel_pub.publish(self.bucket_vel)
         self.bucket_pos_pub.publish(self.bucket_pos)
+
+        if self.abort:
+            rclpy.shutdown()
+            self.destroy_node()
 
 def main(args=None):
     rclpy.init()
