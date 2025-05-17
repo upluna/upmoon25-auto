@@ -11,6 +11,7 @@ from nav_msgs.msg import Odometry
 
 
 from rclpy.node import Node, QoSProfile
+from std_msgs.msg import Int8
 
 DEPTH_SN = '018322071045'
 
@@ -18,6 +19,9 @@ class DepthDriver(Node):
 
     def __init__(self):
         super().__init__('depth_driver')
+
+        self.declare_parameter('demand_publish', False)
+        self.demand_publish = self.get_parameter('demand_publish').value
 
         # This is special for Gazebo - subscriber QOS must match publisher QOS
         self.QOS = QoSProfile(
@@ -30,42 +34,52 @@ class DepthDriver(Node):
         self.PUB_pc = self.create_publisher(PointCloud2, '/camera/depth/points', self.QOS)
 
         # Filters for pointcloud data
-        dec_filter = rs.decimation_filter()
-        dec_filter.set_option(rs.option.filter_magnitude, 3)
+        self.dec_filter = rs.decimation_filter()
+        self.dec_filter.set_option(rs.option.filter_magnitude, 3)
 
-        spat_filter = rs.spatial_filter()
+        self.spat_filter = rs.spatial_filter()
 
-        temp_filter = rs.temporal_filter()
+        self.temp_filter = rs.temporal_filter()
 
-        pc = rs.pointcloud()
+        self.pc = rs.pointcloud()
 
-        pipe = rs.pipeline()
+        self.pipe = rs.pipeline()
 
         cfg = rs.config()
         cfg.enable_device(DEPTH_SN)
         cfg.enable_stream(rs.stream.depth, rs.format.z16, 30)
 
-        pipe.start(cfg)
+        self.pipe.start(cfg)
 
         self.get_logger().info("Depth camera initialized")
 
-        while True:
+        if self.demand_publish:
+            self.create_subscription(Int8, '/cmd/pointcloud', self.onCmd, 1)
+            return
 
-            frame = pipe.wait_for_frames()
+        while True:
+            self.getFrame()
+
+    def onCmd(self, msg):
+        self.get_logger().info('Publishing')
+        self.getFrame()
+
+    def getFrame(self):
+            frame = self.pipe.wait_for_frames()
 
             depth = frame.get_depth_frame()
 
             time = self.get_clock().now().to_msg()
 
-            if not depth: continue
+            if not depth: return
 
             # Apply post-processing filters
             filtered = depth
-            filtered = dec_filter.process(filtered)
-            filtered = spat_filter.process(filtered)
-            filtered = temp_filter.process(filtered)
+            filtered = self.dec_filter.process(filtered)
+            filtered = self.spat_filter.process(filtered)
+            filtered = self.temp_filter.process(filtered)
 
-            points = pc.calculate(filtered)
+            points = self.pc.calculate(filtered)
             vertices = np.array(points.get_vertices())
             
             x = vertices['f0']

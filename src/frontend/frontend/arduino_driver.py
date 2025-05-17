@@ -154,19 +154,16 @@ class ArduinoDriver(Node):
         # Convert raw 0-1023 range to centimeters
         right = float(right_raw)*(-0.13146) + 90.769
         left = float(left_raw)*(-0.13146) + 90.769
+        right = left # TODO: temporary until right side is fixed
 
-        # print(left)
-        # print(right)
-
-        right_msg = Float32()
-        left_msg = Float32()
-
-        right_msg.data = right
-        left_msg.data = left
+        avg = (left + right) / 2
+        print(avg)
+        
+        msg = Float32()
+        msg.data = avg
 
         # Publish a float value in centimeters
-        self.sensor_pubs[0].publish(right_msg)
-        self.sensor_pubs[1].publish(left_msg)
+        self.ir_pub.publish(msg)
 
     # Updates the cam pan
     def camTick(self):

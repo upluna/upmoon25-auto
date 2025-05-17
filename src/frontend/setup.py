@@ -33,7 +33,9 @@ setup(
             'rgb_driver = frontend.rgb_driver:main',
             't265_driver = frontend.t265_driver:main',
             'depth_driver = frontend.depth_driver:main',
-            'rgb_transport = frontend.rgb_transport:main'
+            'rgb_transport = frontend.rgb_transport:main',
+            'kb_driver_comp = frontend.keyboard_driver_comp:main',
+            'js_driver = frontend.joystick_driver:main',
         ],
     },
 )
