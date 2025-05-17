@@ -33,7 +33,8 @@ class MinerState(Enum):
 
 CLK = 0.05
 BUCKET_LOWERED_POS = 60 #TODO: figure this out!!
-DIG_SPEED = 5
+DIG_SPEED = 5.0
+MOVE_SPEED = 25.0
 
 class MiningController(Node):
 
@@ -84,6 +85,7 @@ class MiningController(Node):
         self.abort = False
 
         self.clock = 0
+        self.clock_start = 0
 
         self.forward = np.array([1.0, 0.0, 0.0])
         self.pos     = np.array([0.0 ,0.0 ,0.0])
@@ -208,45 +210,76 @@ class MiningController(Node):
             distance = self.getDist(self.rec_init)
             self.get_logger().info(f'Distance: {distance}')
 
-            self.velocity.linear.x = 1.0
+            self.velocity.linear.x = 1.0 * MOVE_SPEED
 
             if distance <= 0.1:
                 self.get_logger().info("Completed start drive")
                 self.state = MinerState.LOWER_BUCKET
                 self.velocity.linear.x = 0.0
+                self.clock_start = self.clock
         elif self.state == MinerState.LOWER_BUCKET:
             self.bucket_vel.data = 100 # full speed !!
             self.bucket_pos.data = BUCKET_LOWERED_POS
 
-            self.clock += 1
             #TODO: check the IR distance?
-            if (self.clock == 300): # wait 15s
-                self.clock = 0
+            if (self.clock - self.clock_start >= 15): # wait 15s
                 self.state = MinerState.DIG # presumably we are lowered and spinning, move on the the DIG state
+                self.clock_start = self.clock
+                self.get_logger().info("Digging...")
+
             
         elif self.state == MinerState.DIG:
             self.velocity.linear.x = DIG_SPEED
+            self.bucket_vel.data = 100
+
+            if (self.clock - self.clock_start >= 15):
+                self.state = MinerState.RAISE_BUCKET
+                self.clock_start = self.clock
+                self.bucket_vel.data = 0
+                self.velocity.linear.x = 0.0
+
+                self.get_logger().info("Raising bucket....")
+
+        
+        elif self.state == MinerState.RAISE_BUCKET:
+            self.bucket_pos.data = 0
+
+            if (self.clock - self.clock_start >= 15):
+                self.state = MinerState.DRIVE_TO_DUMP
+                self.clock_start = self.clock
+
+                self.get_logger().info("Driving to dump")
+
         elif self.state == MinerState.DRIVE_TO_DUMP:
             distance = self.getDist(self.rec_dump)
             self.get_logger().info(f'Distance: {distance}')
 
-            self.velocity.linear.x = 1.0
+            self.velocity.linear.x = 1.0 * MOVE_SPEED
 
             if distance <= 0.1:
                 self.get_logger().info("Completed dump drive")
                 self.state = MinerState.DUMP
                 self.velocity.linear.x = 0.0
+                self.clock_start = self.clock
+
         elif self.state == MinerState.DUMP:
-            ...
+            self.conveyor.data = 1
+
+            if (self.clock - self.clock_start >= 10):
+                self.state = MinerState.DRIVE_TO_DIG
+                self.conveyor.data = 0
+                self.get_logger().info("Driving to dig")
+
+
         elif self.state == MinerState.DRIVE_TO_DIG:
             distance = self.getDist(self.rec_init)
             self.get_logger().info(f'Distance: {distance}')
 
-            self.velocity.linear.x = -1.0
+            self.velocity.linear.x = -1.0 * MOVE_SPEED
 
             if distance <= 0.1:
-                self.get_logger().info("Completed dig drive")
-                self.state = MinerState.DRIVE_TO_DUMP
+                self.get_logger().info("Completed dig drive, driving to dump")
+                self.state = MinerState.LOWER_BUCKET
                 self.velocity.linear.x = 0.0
 
         self.velocity_pub.publish(self.velocity)
