@@ -30,8 +30,8 @@ class RGBDriver(Node):
         )
 
         # TODO change default values
-        self.declare_parameter('publish_raw', False)
-        self.declare_parameter('publish_compressed', True)
+        self.declare_parameter('publish_raw', True)
+        self.declare_parameter('publish_compressed', False)
 
         self.publish_compressed = self.get_parameter('publish_compressed').value
         self.publish_raw = self.get_parameter('publish_raw').value

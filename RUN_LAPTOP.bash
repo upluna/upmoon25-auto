@@ -7,8 +7,10 @@ source install/local_setup.bash
 trap "echo 'Shutting down...'; kill 0" EXIT
 
 echo Launching Nodes...
-ros2 launch frontend comp_launch.py
-#ros2 launch backend launch.py
+rviz2 &
+ros2 run frontend rgb_transport &
+ros2 run frontend js_driver &
+ros2 bag record /odom /camera /depth /points &
 
 # Wait for nodes to finish
 wait

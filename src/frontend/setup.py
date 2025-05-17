@@ -11,6 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', ['launch/jet_launch.py']),
+        ('share/' + package_name + '/launch', ['launch/comp_launch.py']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

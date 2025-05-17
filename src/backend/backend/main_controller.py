@@ -5,7 +5,7 @@ from enum import Enum
 from rclpy.node import Node, QoSProfile
 from std_msgs.msg import Int8, Header
 from interfaces.srv import FindTag, GoTo
-from geometry_msgs.msg import Pose, Quaternion
+from geometry_msgs.msg import Pose, Quaternion, PoseStamped, Point
 
 
 '''
@@ -50,6 +50,35 @@ class FindTagCommand(Command):
         response = self.cli.call(request)
 
         self.get_logger().info(f'Response: {response}')
+
+class Miner(Command):
+
+    def __init__(self):
+        super().__init__(name='miner')
+
+        self.cmd_pub = None
+
+    def onLink(self):
+        self.cmd_pub = self.node.create_publisher(PoseStamped, '/cmd/miner', qos_profile=self.node.QOS)
+
+    def execute(self, args):
+        if len(args) < 1:
+            self.node.get_logger().error("Missing Arguments")
+            return
+        
+        msg = PoseStamped()
+        msg.header.frame_id = args[0]
+        msg.pose.position = Point()
+        
+        if (args[0] == 'mark' or args[0] == 'recdump'):
+            if len(args) < 2:
+                self.node.get_logger().error(f'Missing distance arg')
+                return
+            
+            dist = float(args[1])
+            msg.pose.position.x = dist
+        
+        self.cmd_pub.publish(msg)
 
 class GoToCommand(Command):
 
@@ -160,7 +189,7 @@ class MainController(Node):
         self.registerNewCommand(FindTagCommand())
         self.registerNewCommand(LocalizeCommand())
         self.registerNewCommand(GoToCommand())
-
+        self.registerNewCommand(Miner())
 
         self.get_logger().info("Initialized")
 

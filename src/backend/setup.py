@@ -36,7 +36,8 @@ setup(
             'image_saver = backend.debug.image_saver:main',
             'test_path_replanning = backend.test_path_replanning:main',
             'localizer = backend.localizer:main',
-            'test_localizer = backend.test_localizer:main'
+            'test_localizer = backend.test_localizer:main',
+            'mining_controller = backend.mining_controller:main'
         ],
     },
 )

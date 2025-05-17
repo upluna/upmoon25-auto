@@ -157,7 +157,6 @@ class ArduinoDriver(Node):
         right = left # TODO: temporary until right side is fixed
 
         avg = (left + right) / 2
-        print(avg)
         
         msg = Float32()
         msg.data = avg

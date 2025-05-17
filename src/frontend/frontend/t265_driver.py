@@ -3,7 +3,8 @@ import pyrealsense2 as rs
 import numpy as np
 import rclpy.timer
 from std_msgs.msg import Header
-from geometry_msgs.msg import Vector3, Pose, PoseWithCovariance, Point, Quaternion, Twist, TwistWithCovariance
+from tf2_ros.transform_broadcaster import TransformBroadcaster
+from geometry_msgs.msg import Vector3, Pose, PoseWithCovariance, Point, Quaternion, Twist, TwistWithCovariance, TransformStamped
 from nav_msgs.msg import Odometry
 import pyrealsense2 as rs
 import quaternion
@@ -32,6 +33,8 @@ class T265Driver(Node):
 
         self.PUB_odom = self.create_publisher(Odometry, '/odom', self.QOS)
 
+        self.TF_odom = TransformBroadcaster(self)
+
         self.init_pose = None
 
         pipe = rs.pipeline()
@@ -54,7 +57,6 @@ class T265Driver(Node):
 
             time = self.get_clock().now().to_msg()
             self.publishOdom(pose, time)
-            #self.broadcastTransform(pose, time)
 
     def publishOdom(self, pose, time):
         odom = Odometry()
@@ -139,9 +141,24 @@ class T265Driver(Node):
 
         self.PUB_odom.publish(odom)
 
+        t = TransformStamped()
 
-    def broadcastTransform(self, pose, time):
-        ...
+        t.header.stamp = time
+        t.header.frame_id = 'odom'
+        t.child_frame_id = 'base_link'
+
+        t.transform.translation.x = point.x
+        t.transform.translation.y = point.y
+        t.transform.translation.z = point.z
+
+        t.transform.rotation.x = quat.x
+        t.transform.rotation.y = quat.y
+        t.transform.rotation.z = quat.z
+        t.transform.rotation.w = quat.w
+
+        self.TF_odom.sendTransform(t)
+
+
 
 def main(args=None):
     rclpy.init()
