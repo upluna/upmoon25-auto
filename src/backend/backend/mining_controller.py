@@ -6,7 +6,7 @@ import time
 from rclpy.node import Node, QoSProfile
 from geometry_msgs.msg import Pose, PoseStamped, Vector3, Twist, Quaternion
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Int16, Int8, ColorRGBA
+from std_msgs.msg import Int16, Int8, ColorRGBA, Float32
 from visualization_msgs.msg import Marker
 from enum import Enum
 
@@ -32,6 +32,8 @@ class MinerState(Enum):
     WAIT = 8
 
 CLK = 0.05
+BUCKET_LOWERED_POS = 60 #TODO: figure this out!!
+DIG_SPEED = 5
 
 class MiningController(Node):
 
@@ -50,6 +52,9 @@ class MiningController(Node):
 
         self.create_subscription(PoseStamped, '/cmd/miner', self.onCmd, self.QOS)
         self.create_subscription(Odometry, '/odom', self.onOdom, self.QOS)
+
+        self.ir_distance = 0.0
+        self.create_subscription(Float32, '/sensor/ir', self.onIR, self.QOS)
 
         self.PUB_marker = self.create_publisher(Marker, '/miner_marker', self.QOS)
         self.timer = self.create_timer(CLK, self.state_check)
@@ -112,6 +117,9 @@ class MiningController(Node):
             self.state = MinerState.DRIVE_TO_START
         elif cmd_name == 'stop':
             self.state = MinerState.STOPPED
+
+    def onIR(self, msg):
+        self.ir_distance = msg.data
 
     def onRecInit(self, pose):
         dist = pose.position.x
@@ -185,9 +193,17 @@ class MiningController(Node):
         elif self.state == MinerState.DRIVE_TO_START:
             ...
         elif self.state == MinerState.LOWER_BUCKET:
-            self.bucket_pos.data += 1 
+            self.bucket_vel.data = 100 # full speed !!
+            self.bucket_pos.data = BUCKET_LOWERED_POS
+
+            self.clock += 1
+            #TODO: check the IR distance?
+            if (self.clock == 300): # wait 15s
+                self.clock = 0
+                self.state = MinerState.DIG # presumably we are lowered and spinning, move on the the DIG state
+            
         elif self.state == MinerState.DIG:
-            ...
+            self.velocity.linear.x = DIG_SPEED
         elif self.state == MinerState.DRIVE_TO_DUMP:
             ...
         elif self.state == MinerState.DUMP:
