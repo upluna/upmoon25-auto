@@ -1,6 +1,7 @@
 import rclpy
 import numpy as np
 import quaternion
+import time
 
 from rclpy.node import Node, QoSProfile
 from geometry_msgs.msg import Pose, PoseStamped, Vector3, Twist, Quaternion
@@ -51,7 +52,7 @@ class MiningController(Node):
         self.create_subscription(Odometry, '/odom', self.onOdom, self.QOS)
 
         self.PUB_marker = self.create_publisher(Marker, '/miner_marker', self.QOS)
-        #self.timer = self.create_timer(CLK, self.state_check)
+        self.timer = self.create_timer(CLK, self.state_check)
 
         self.velocity_pub = self.create_publisher(Twist, 'cmd/velocity', 10)
         self.conveyor_pub = self.create_publisher(Int16, 'cmd/conveyor', 10)
@@ -59,8 +60,8 @@ class MiningController(Node):
         self.bucket_pos_pub = self.create_publisher(Int16, 'cmd/bucket_pos', 10)
 
         self.velocity = Twist()
-        self.velocity.linear.x = 0
-        self.velocity.angular.z = 0
+        self.velocity.linear.x = 0.0
+        self.velocity.angular.z = 0.0
 
         self.conveyor = Int16()
         self.conveyor.data = 0
@@ -69,10 +70,12 @@ class MiningController(Node):
         self.bucket_vel.data = 0
 
         self.bucket_pos = Int16()
-        self.bucket_pos = 0
+        self.bucket_pos.data = 0
 
         self.rec_init = None
         self.rec_dump = None
+
+        self.clock = 0
 
         self.forward = np.array([1.0, 0.0, 0.0])
         self.pos     = np.array([0.0 ,0.0 ,0.0])
@@ -170,9 +173,10 @@ class MiningController(Node):
         self.PUB_marker.publish(msg)
 
     def state_check(self):
+        self.clock += CLK
         if self.state == MinerState.STOPPED:
-            self.velocity.angular.z = 0
-            self.velocity.linear.x = 0
+            self.velocity.angular.z = 0.0
+            self.velocity.linear.x = 0.0
 
             self.conveyor.data = 0
 
