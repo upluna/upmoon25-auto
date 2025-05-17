@@ -26,8 +26,11 @@ class MinerState(Enum):
     DRIVE_TO_DUMP = 3
     DUMP = 4
     DRIVE_TO_DIG = 5
+    LOWER_BUCKET = 6
+    RAISE_BUCKET = 7
+    WAIT = 8
 
-CLK = 0.01
+CLK = 0.05
 
 class MiningController(Node):
 
@@ -54,6 +57,19 @@ class MiningController(Node):
         self.conveyor_pub = self.create_publisher(Int16, 'cmd/conveyor', 10)
         self.bucket_vel_pub = self.create_publisher(Int16, 'cmd/bucket_vel', 10)
         self.bucket_pos_pub = self.create_publisher(Int16, 'cmd/bucket_pos', 10)
+
+        self.velocity = Twist()
+        self.velocity.linear.x = 0
+        self.velocity.angular.z = 0
+
+        self.conveyor = Int16()
+        self.conveyor.data = 0
+
+        self.bucket_vel = Int16()
+        self.bucket_vel.data = 0
+
+        self.bucket_pos = Int16()
+        self.bucket_pos = 0
 
         self.rec_init = None
         self.rec_dump = None
@@ -153,7 +169,32 @@ class MiningController(Node):
 
         self.PUB_marker.publish(msg)
 
+    def state_check(self):
+        if self.state == MinerState.STOPPED:
+            self.velocity.angular.z = 0
+            self.velocity.linear.x = 0
 
+            self.conveyor.data = 0
+
+            self.bucket_vel.data = 0
+
+        elif self.state == MinerState.DRIVE_TO_START:
+            ...
+        elif self.state == MinerState.LOWER_BUCKET:
+            self.bucket_pos.data += 1 
+        elif self.state == MinerState.DIG:
+            ...
+        elif self.state == MinerState.DRIVE_TO_DUMP:
+            ...
+        elif self.state == MinerState.DUMP:
+            ...
+        elif self.state == MinerState.DRIVE_TO_DIG:
+            ...
+
+        self.velocity_pub.publish(self.velocity)
+        self.conveyor_pub.publish(self.conveyor)
+        self.bucket_vel_pub.publish(self.bucket_vel)
+        self.bucket_pos_pub.publish(self.bucket_pos)
 
 def main(args=None):
     rclpy.init()
