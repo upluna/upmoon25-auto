@@ -52,4 +52,10 @@ def generate_launch_description():
                 'demand_publish' : True
             }]
         ),
+        Node(
+            package='frontend',
+            executable='mining_controller',
+            name='mining_controller',
+            output='screen'
+        )
     ])
