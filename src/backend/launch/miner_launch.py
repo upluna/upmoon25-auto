@@ -52,15 +52,26 @@ def generate_launch_description():
        output='screen'
     )
 
-    t265_driver = Node(
+    rgb_driver = Node(
        package='frontend',
-       executable='t265_driver',
+       executable='rgb_driver',
        output='screen'
+    )
+
+    tag_detector = Node(
+       package='frontend',
+       executable='tag_detector',
+       output='screen',
+       parameters=[{
+            'publish_raw': False,
+            'publish_compressed': True
+       }]
     )
 
     return launch.LaunchDescription([
         node_robot_state_publisher,
         miner_controller,
         map_odom_tf,
-        t265_driver,
+        rgb_driver,
+        tag_detector
     ])
