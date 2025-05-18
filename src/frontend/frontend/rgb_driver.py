@@ -24,7 +24,7 @@ class RGBDriver(Node):
         # This is special for Gazebo - subscriber QOS must match publisher QOS
         self.QOS = QoSProfile(
             depth=3,
-            reliability=1, # Best effort
+            reliability=2, # Best effort
             history=1,     # Keep last
             durability=2   # Volatile
         )
