@@ -232,10 +232,10 @@ class MiningController(Node):
     def state_check(self):
         self.clock += CLK
         if (self.bucket_alarm == 1 and self.prev_bucket_alarm == 0): # Rising edge case
-            self.prev_state = self.state # Save the previous state so we can jump back to it
             self.state = MinerState.BUCKET_ALARM
+            self.get_logger().error("Bucket Chain Stall Detected! Attempting Recovery")
+            self.clock_start = self.clock
         
-
         if self.state == MinerState.STOPPED:
             self.velocity.angular.z = 0.0
             self.velocity.linear.x = 0.0
@@ -351,6 +351,26 @@ class MiningController(Node):
                 self.setRunInit()
                 self.clock_start = self.clock
                 self.velocity.linear.x = 0.0
+
+        elif self.state == MinerState.BUCKET_ALARM:
+            self.bucket_pos.data = 0
+
+            self.bucket_vel.data = 0
+
+            if (self.clock - self.clock_start >= 15):
+                if (self.bucket_alarm == 0):
+                    self.state = MinerState.DRIVE_TO_START
+                    self.clock_start = self.clock
+                    self.get_logger().warn("Recovered successfully! Restarting Cycle")
+                else:
+                    self.state = MinerState.STOPPED
+                    self.abort = True
+                    self.get_logger().error("Failed to Recover! Aborting...")
+            elif (self.clock - self.clock_start >= 10):
+                self.bucket_vel.data = +BUCKET_SLOW_SPEED
+            elif (self.clock -self.clock_start >= 5):
+                self.bucket_vel.data = -BUCKET_SLOW_SPEED
+
 
         if self.state != MinerState.STOPPED:
             self.velocity_pub.publish(self.velocity)
