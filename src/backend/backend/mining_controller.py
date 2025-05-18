@@ -31,7 +31,7 @@ class MinerState(Enum):
     DRIVE_TO_DIG = 5
     LOWER_BUCKET = 6
     RAISE_BUCKET = 7
-    WAIT = 8
+    BUCKET_ALARM = 8
 
 # SETPOINTS:
 CLK = 0.05
@@ -70,6 +70,10 @@ class MiningController(Node):
         self.ir_distance = 0
         self.create_subscription(Int16, '/sensor/ir', self.onIR, self.QOS)
 
+        self.bucket_alarm = 0
+        self.prev_bucket_alarm = 0
+        self.create_subscription(Int16, '/sensor/bucket_alarm', self.onBucketAlarm, self.QOS)
+
         self.PUB_marker = self.create_publisher(Marker, '/miner_marker', self.QOS)
         self.timer = self.create_timer(CLK, self.state_check)
 
@@ -97,6 +101,8 @@ class MiningController(Node):
 
         self.abort = False
         self.first = True
+
+        self.prev_state = MinerState.STOPPED
 
         self.clock = 0
         self.clock_start = 0
@@ -143,6 +149,10 @@ class MiningController(Node):
 
     def onIR(self, msg):
         self.ir_distance = msg.data
+
+    def onBucketAlarm(self, msg):
+        self.prev_bucket_alarm = self.bucket_alarm
+        self.bucket_alarm = msg.data
 
     def onRecInit(self, pose):
         dist = pose.position.x
@@ -212,6 +222,11 @@ class MiningController(Node):
 
     def state_check(self):
         self.clock += CLK
+        if (self.bucket_alarm == 1 and self.prev_bucket_alarm == 0): # Rising edge case
+            self.prev_state = self.state # Save the previous state so we can jump back to it
+            self.state = MinerState.BUCKET_ALARM
+        
+
         if self.state == MinerState.STOPPED:
             self.velocity.angular.z = 0.0
             self.velocity.linear.x = 0.0
