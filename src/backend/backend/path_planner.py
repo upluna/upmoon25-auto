@@ -51,7 +51,7 @@ class PathPlanner(Node):
 
         # Where path destinations are published
         self.SUB_goal = self.create_subscription(Pose, 'path/goal', self.onGoal, self.QOS)
-        self.SUB_odom = self.create_subscription(Odometry, '/odom_true', self.onOdom, self.QOS)
+        self.SUB_odom = self.create_subscription(Odometry, '/odom', self.onOdom, self.QOS)
 
         # Where our current path is published
         self.PUB_path = self.create_publisher(Path, 'path/path', self.QOS)

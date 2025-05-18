@@ -15,6 +15,7 @@ from std_msgs.msg import Int8
 
 DEPTH_SN = '018322071045'
 DEPTH_FREQUENCY = 0.5
+DEPTH_FREQUENCY = 0.5
 
 class DepthDriver(Node):
 
@@ -59,13 +60,13 @@ class DepthDriver(Node):
 
         if self.demand_publish:
             self.create_subscription(Int8, '/cmd/pointcloud', self.onCmd, 1)
+            self.create_timer(DEPTH_FREQUENCY, self.onTimer)
             return
 
         while True:
             self.getFrame()
 
     def onTimer(self):
-        self.get_logger().info("Publishing")
         self.getFrame()
 
     def onCmd(self, msg):

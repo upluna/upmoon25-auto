@@ -1,8 +1,11 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
-
 import os
 import xacro
+
+
+xacro_file = "/home/upmoon25/ros2/upmoon25-auto/src/backend/description/robot.urdf.xacro"
+robot_description_raw = xacro.process_file(xacro_file).toxml()
 
 def generate_launch_description():
 
@@ -68,10 +71,18 @@ def generate_launch_description():
             }]
         ),
         Node(
-            package='frontend',
+            package='backend',
             executable='mining_controller',
             name='mining_controller',
             output='screen'
+        ),
+        Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='screen',
+        parameters=[{
+        'robot_description': robot_description_raw,
+        'use_sim_time': True}]
         ),
         Node(
         package='tf2_ros',
@@ -80,5 +91,5 @@ def generate_launch_description():
             '0', '0', '0', '0', '0', '0',
             'map', 'odom'
         ]
-    )
+        ),
     ])

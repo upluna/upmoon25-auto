@@ -1,12 +1,14 @@
 #!/bin/bash
-source install/local_setup.bash
 
 # Kill child processes when the script is interrupted or exits
 trap "echo 'Shutting down...'; kill 0" EXIT
 
 echo Launching Nodes...
-ros2 launch frontend comp_launch.py
-#ros2 launch backend launch.py
+rviz2 &
+ros2 run frontend rgb_transport &
+ros2 bag record /odom /camera /depth /points &
+
+gnome-terminal -- bash -c "ros2 run frontend js_driver;" 
 
 # Wait for nodes to finish
 wait

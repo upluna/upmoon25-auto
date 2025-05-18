@@ -92,9 +92,19 @@ class GoToCommand(Command):
         super().__init__(name='goto')
 
         self.cli = None
+        self.PUB_abort = None
 
     def onLink(self):
         self.cli = self.node.create_client(GoTo, 'goto')
+
+        qos = QoSProfile(
+            depth=3,
+            reliability=1, # Best effort
+            history=1,     # Keep last
+            durability=2   # Volatile
+        )
+
+        self.PUB_abort = self.node.create_publisher(Int8, '/cmd_mp', qos)
 
     def execute(self, args):
         if len(args) < 2:
@@ -103,6 +113,14 @@ class GoToCommand(Command):
         
         if not self.cli.wait_for_service(timeout_sec=0.04):
             self.node.get_logger().error('Service not available')
+            return
+
+        if (args[1] == 'abort'):
+            msg = Int8()
+            msg.data = 1
+            self.PUB_abort.publish(msg)
+
+            self.get_logger().info("Aborting")
             return
         
         x = float(args[0])
@@ -129,13 +147,35 @@ class MapCommand(Command):
         super().__init__(name='map')
 
         self.PUB_mapcmd = None
+        self.PUB_mapmarker = None
 
     def onLink(self):
         self.PUB_mapcmd = self.node.create_publisher(Int8, '/cmd_map', qos_profile=self.node.QOS)
+        self.PUB_map_marker = self.node.create_publisher(Point, '/cmd_map_marker', qos_profile=self.node.QOS)
+
 
     def execute(self, args):
         if len(args) < 1:
             self.node.get_logger().info("Command 'map' takes 1 argument (0 or 1)")
+            return
+
+        if (args[0] == 'mark'):
+            
+            if len(args) < 3:
+                self.node.get_logger().info("Command 'map mark' takes 2 arguments (x y)")
+                return
+            
+            x = float(args[1])
+            y = float(args[2])
+
+            msg = Point()
+            msg.x = x
+            msg.y = y
+            msg.z = 0.0
+
+            self.PUB_map_marker.publish(msg)
+
+            return
 
         val = int(args[0])
 
