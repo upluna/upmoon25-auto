@@ -60,6 +60,8 @@ class JoystickDriver(Node):
         self.camera_height_pub = self.create_publisher(Int16, 'cmd/camera_height', 10)
 
         self.bucket_pos = 0.0
+        self.bucket_auto_on = False
+        self.bucket_auto_debounce = 0
 
         # Timer for polling events from pygame
         self.timer = self.create_timer(self.clk, self.pollEvents)
@@ -145,19 +147,27 @@ class JoystickDriver(Node):
             self.bucket_pos_pub.publish(msg)
 
         # Publish Bucket Chain Speed
-        bucket_speed = int(-100.0 * self.controller.get_axis(RJOY_Y))
-        if (abs(bucket_speed) <= 10):
-            bucket_speed = 0
-        elif (abs(bucket_speed) <=20):
-            bucket_speed = 20 if bucket_speed > 0 else -20
-        elif (abs(bucket_speed) <= 40):
-            bucket_speed = 40 if bucket_speed > 0 else -40
-        elif (abs(bucket_speed) <=60):
-            bucket_speed = 60 if bucket_speed > 0 else -60
-        elif (abs(bucket_speed) <= 80):
-            bucket_speed = 80 if bucket_speed > 0 else -80
-        elif (abs(bucket_speed) <= 100):
-            bucket_speed = 100 if bucket_speed > 0 else -100
+        self.bucket_auto_debounce += 1
+        if (self.controller.get_button(A_BT) and self.bucket_auto_debounce > 6):
+            self.bucket_auto_on = ~self.bucket_auto_on
+            self.bucket_auto_debounce = 0
+
+        if (self.bucket_auto_on):
+            bucket_speed = 100
+        else:
+            bucket_speed = int(-100.0 * self.controller.get_axis(RJOY_Y))
+            if (abs(bucket_speed) <= 10):
+                bucket_speed = 0
+            elif (abs(bucket_speed) <=20):
+                bucket_speed = 20 if bucket_speed > 0 else -20
+            elif (abs(bucket_speed) <= 40):
+                bucket_speed = 40 if bucket_speed > 0 else -40
+            elif (abs(bucket_speed) <=60):
+                bucket_speed = 60 if bucket_speed > 0 else -60
+            elif (abs(bucket_speed) <= 80):
+                bucket_speed = 80 if bucket_speed > 0 else -80
+            elif (abs(bucket_speed) <= 100):
+                bucket_speed = 100 if bucket_speed > 0 else -100
 
         msg = Int16()
         msg.data = bucket_speed
