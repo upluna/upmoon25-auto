@@ -57,9 +57,9 @@ class JoystickDriver(Node):
         self.bucket_vel_pub = self.create_publisher(Int16, 'cmd/bucket_vel', 10)
         self.bucket_pos_pub = self.create_publisher(Int16, 'cmd/bucket_pos', 10)
         self.camera_pan_pub = self.create_publisher(Int8, 'cmd/pan', 1)
+        self.camera_height_pub = self.create_publisher(Int16, 'cmd/camera_height', 10)
 
         self.bucket_pos = 0.0
-        self.camera_height = 0.0
 
         # Timer for polling events from pygame
         self.timer = self.create_timer(self.clk, self.pollEvents)
@@ -75,6 +75,11 @@ class JoystickDriver(Node):
         num_buttons = self.controller.get_numbuttons()
         num_axes = self.controller.get_numaxes()
         print("Buttons: " + str(num_buttons) + " Axes: " + str(num_axes))
+
+        # Auto set camera height to 100
+        msg = Int16()
+        msg.data = 100
+        self.camera_height_pub.publish(msg)
 
         self.FPS = 25
 
@@ -157,7 +162,7 @@ class JoystickDriver(Node):
         msg = Int16()
         msg.data = bucket_speed
         self.bucket_vel_pub.publish(msg)
-
+            
         msg = Int8()
         if (self.controller.get_button(BACK_BT)):
             msg.data = 1
