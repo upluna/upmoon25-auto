@@ -171,7 +171,7 @@ class JoystickDriver(Node):
         else:
             msg.data = 0
 
-        self.camera_pan_pub.publish(msg) 
+        self.camera_pan_pub.publish(msg)         
 
         pygame.display.update()
         pygame.time.Clock().tick(self.FPS)

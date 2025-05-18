@@ -36,6 +36,7 @@ class RGBTransport(Node):
         self.get_logger().info("Initialized")
 
     def compressed_callback(self, msg: CompressedImage):
+        self.get_logger().info("Here")
         try:
             # Decode compressed image
             np_arr = np.frombuffer(msg.data, dtype=np.uint8)

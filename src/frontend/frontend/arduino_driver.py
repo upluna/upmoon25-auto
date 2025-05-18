@@ -16,8 +16,6 @@ from tf2_ros.transform_broadcaster import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped, PoseWithCovariance
 from sensor_msgs.msg import JointState
 
-
-
 '''
     This node handles all interactions with the Arduino. This includes force sensors,
     IR sensors, camera servo, camera linear servo, and bucket linear servo.
@@ -44,6 +42,33 @@ PAN_ANG_180 = 280
 
 LIN_SERVO_SPEED = 0.012 # Meters per second
 LIN_SERVO_MAX = 0.2 # Meters
+
+class Smoother():
+
+    def __init__(self, n=5):
+        self.n=n
+        self.idx = 0
+        self.num_elems = 0
+
+        self.arr = [0] * self.n
+
+    def add(self, value):
+        self.arr[self.idx] = value
+
+        if (self.num_elems < self.n):
+            self.num_elems += 1
+
+        self.idx = (self.idx + 1) % self.num_elems
+
+    def getValue(self):
+        idx = self.idx
+        val = self.arr[idx]
+        for i in range(self.num_elems):
+            idx = (idx - 1) % self.n
+            val += self.arr[idx]
+
+        return round(val / self.num_elems)
+
 
 class PanState(Enum):
     STOP = 0
@@ -79,7 +104,7 @@ class ArduinoDriver(Node):
         sub_cb = MutuallyExclusiveCallbackGroup()
 
         # Flash succesful: now initialize publishers
-        self.ir_pub = self.create_publisher(Float32, '/sensor/ir', 1, callback_group=pub_cb)
+        self.ir_pub = self.create_publisher(Int16, '/sensor/ir', 1, callback_group=pub_cb)
 
         self.PUB_campan = self.create_publisher(Int16, '/camera/rgb/pan', 1, callback_group=pub_cb)
 
@@ -91,7 +116,7 @@ class ArduinoDriver(Node):
         # Transform broadcasters
         self.PUB_joint = self.create_publisher(JointState, '/joint_states', 3, callback_group=sub_cb)
 
-        self.create_timer(0.04, self.camTick, sub_cb)
+        self.create_timer(0.01, self.camTick, sub_cb)
         self.create_timer(0.01, self.handleSerial, pub_cb)
 
         self.write = True # Set to true whenever cam pan is updated, false when written to Arduino
@@ -101,6 +126,8 @@ class ArduinoDriver(Node):
         self.cam_height = 100
         self.cam_height_tf = 0.0
         self.bucket_height = 0
+
+        self.ir_smoother = Smoother(n=20)
 
         # Publish initial transforms 
         self.publishActTF(0.0)
@@ -151,15 +178,10 @@ class ArduinoDriver(Node):
         right_raw = int(tokens[0])
         left_raw =  int(tokens[1])
 
-        # Convert raw 0-1023 range to centimeters
-        right = float(right_raw)*(-0.13146) + 90.769
-        left = float(left_raw)*(-0.13146) + 90.769
-        right = left # TODO: temporary until right side is fixed
+        self.ir_smoother.add(right_raw)
 
-        avg = (left + right) / 2
-        
-        msg = Float32()
-        msg.data = avg
+        msg = Int16()
+        msg.data = self.ir_smoother.getValue()
 
         # Publish a float value in centimeters
         self.ir_pub.publish(msg)

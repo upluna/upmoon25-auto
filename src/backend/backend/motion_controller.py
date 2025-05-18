@@ -10,7 +10,7 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 from nav_msgs.msg import Path, Odometry
 from geometry_msgs.msg import Pose, PoseStamped, Quaternion, TransformStamped, Twist
-from std_msgs.msg import Header, String
+from std_msgs.msg import Header, String, Int8
 
 from tf2_ros import TransformException
 from tf2_ros.transform_listener import TransformListener
@@ -46,6 +46,7 @@ class State(Enum):
     Services:
     GoTo: takes an x and y position on the map, and returns if succesful or aborted
 '''
+
 class MotionController(Node):
     
     def __init__(self):
@@ -54,7 +55,7 @@ class MotionController(Node):
         self.YAW_TOLERANCE = 0.05
         self.XZ_TOLERANCE = 0.25
         self.ROT_SPEED = 1.0
-        self.LINEAR_SPEED = 0.25
+        self.LINEAR_SPEED = 35.0
 
         self.state = State.WAITING_SERV
         # We wait for certain nodes to be ready first
@@ -72,6 +73,13 @@ class MotionController(Node):
             durability=2   # Volatile
         )
 
+        self.reliable_QOS = QoSProfile(
+            depth=3,
+            reliability=1, # Best effort
+            history=1,     # Keep last
+            durability=2   # Volatile
+        )
+
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
@@ -83,10 +91,12 @@ class MotionController(Node):
         self.srv = self.create_service(GoTo, 'goto', self.serveGoTo, callback_group=srv_cb)
 
         self.SUB_path = self.create_subscription(Path, 'path/path', self.onPath, self.QOS, callback_group=pubsub_cb)
-        self.SUB_odom = self.create_subscription(Odometry, '/odom_true', self.onOdom, self.QOS, callback_group=pubsub_cb)
+        self.SUB_odom = self.create_subscription(Odometry, '/odom', self.onOdom, self.QOS, callback_group=pubsub_cb)
+        self.SUB_cmd = self.create_subscription(Int8, '/cmd_mp', self.onCmd, self.reliable_QOS, callback_group=pubsub_cb)
+
 
         self.PUB_goal = self.create_publisher(Pose, 'path/goal', self.QOS, callback_group=pubsub_cb)
-        self.PUB_vel = self.create_publisher(Twist, '/cmd_vel', 10, callback_group=pubsub_cb)
+        self.PUB_vel = self.create_publisher(Twist, '/cmd/velocity', 10, callback_group=pubsub_cb)
 
         self.curr_path = []
         self.goal_idx = -1
@@ -96,6 +106,14 @@ class MotionController(Node):
         self.transform = None # map -> odom
 
         self.srv_cond = Condition()
+
+    # abort msg
+    def onCmd(self, msg):
+        self.sendStop()
+
+        with self.srv_cond:
+            self.state = State.FINISHED
+            self.srv_cond.notify()
 
     def sendStop(self):
         vel_msg = Twist()

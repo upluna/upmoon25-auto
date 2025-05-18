@@ -8,7 +8,7 @@ import time
 from pymodbus.client.sync import ModbusSerialClient as ModbusClient
 from pymodbus.exceptions import ModbusIOException
 
-SPEED_FACTOR = 15
+SPEED_FACTOR = 30
 
 RAMP = 0xA0 # 10rpm/s
 
@@ -66,7 +66,6 @@ class MotorControllerNode(Node):
                 direction = 1 if rpm < 0 else 0  # 1 = reverse, 0 = forward
                 self.set_motor_control(True, direction)
                 self.set_motor_speed(abs(rpm))
-                self.get_logger().info(f'Set rpm to {rpm}')
             except ModbusIOException as e:
                 self.get_logger().error(f'Modbus IO error: {e}')
             except Exception as e:
