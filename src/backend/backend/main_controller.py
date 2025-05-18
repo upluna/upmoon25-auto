@@ -59,7 +59,13 @@ class Miner(Command):
         self.cmd_pub = None
 
     def onLink(self):
-        self.cmd_pub = self.node.create_publisher(PoseStamped, '/cmd/miner', qos_profile=self.node.QOS)
+        qos = QoSProfile(
+            depth=3,
+            reliability=1,
+            history=1,
+            durability=2
+        )
+        self.cmd_pub = self.node.create_publisher(PoseStamped, '/cmd/miner', qos_profile=qos)
 
     def execute(self, args):
         if len(args) < 1:

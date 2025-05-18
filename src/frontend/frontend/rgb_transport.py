@@ -12,7 +12,7 @@ class RGBTransport(Node):
         # This is special for Gazebo - subscriber QOS must match publisher QOS
         self.QOS = QoSProfile(
             depth=3,
-            reliability=2, # Best effort
+            reliability=1, # Best effort
             history=1,     # Keep last
             durability=2   # Volatile
         )
@@ -36,6 +36,7 @@ class RGBTransport(Node):
         self.get_logger().info("Initialized")
 
     def compressed_callback(self, msg: CompressedImage):
+        self.get_logger().info("Here")
         try:
             # Decode compressed image
             np_arr = np.frombuffer(msg.data, dtype=np.uint8)

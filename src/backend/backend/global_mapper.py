@@ -14,8 +14,8 @@ from map_msgs.msg import OccupancyGridUpdate
 from std_msgs.msg import Header, Int8, Float32
 from scipy.interpolate import griddata
 
-OBS_MAX_Z = 0.12
-OBS_MIN_Z = -0.35
+OBS_MAX_Z = -0.1
+OBS_MIN_Z = -0.8
 DEBUG = True
 HEIGHTMAP = False
 
@@ -136,7 +136,8 @@ class GlobalMapper(Node):
     def filterSnapPoints(self, points):
         self.grid.fill(0.0)
 
-        # Filter points        
+        # Filter points
+                
         valid_mask =  (points[: , 2] < self.TOP_CLIP) & \
                       (points[: , 2] > self.BOTTOM_CLIP)
         points = points[valid_mask]
@@ -211,7 +212,13 @@ class GlobalMapper(Node):
         if (tf == None):
             return (points, False)
         
-        valid_mask = (points[:, 2] != 0) & (points[:, 2] != np.inf)
+        valid_mask = None
+
+        if self.use_sim_data:
+            valid_mask = (points[:, 2] != 0) & (points[:, 2] != np.inf)
+        else:
+            valid_mask = (points[:, 2] != 0) & (points[:, 2] != np.inf) & (points[:, 2] <= 3)
+
         points = points[valid_mask]
 
         tf_rot = tf.transform.rotation
@@ -244,14 +251,14 @@ class GlobalMapper(Node):
         self.detectObstacles()
         
         
-        if (self.first_gen):
-            self.first_gen = False
-            self.publishObstacleMap(stamp)
-        else:
-            self.publishObstacleMapUpdate(stamp, x_min, x_max, y_min, y_max)
+        #if (self.first_gen):
+        #    self.first_gen = False
+        #    self.publishObstacleMap(stamp)
+        #else:
+        #    self.publishObstacleMapUpdate(stamp, x_min, x_max, y_min, y_max)
         
 
-        #self.publishObstacleMap(stamp)
+        self.publishObstacleMap(stamp)
 
         self.update = False
 

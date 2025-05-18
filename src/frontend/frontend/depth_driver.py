@@ -14,6 +14,7 @@ from rclpy.node import Node, QoSProfile
 from std_msgs.msg import Int8
 
 DEPTH_SN = '018322071045'
+DEPTH_FREQUENCY = 0.5
 
 class DepthDriver(Node):
 
@@ -32,6 +33,9 @@ class DepthDriver(Node):
         )
 
         self.PUB_pc = self.create_publisher(PointCloud2, '/camera/depth/points', self.QOS)
+
+        if self.demand_publish:
+            self.create_timer(DEPTH_FREQUENCY, self.onTimer)
 
         # Filters for pointcloud data
         self.dec_filter = rs.decimation_filter()
@@ -59,6 +63,10 @@ class DepthDriver(Node):
 
         while True:
             self.getFrame()
+
+    def onTimer(self):
+        self.get_logger().info("Publishing")
+        self.getFrame()
 
     def onCmd(self, msg):
         self.get_logger().info('Publishing')
