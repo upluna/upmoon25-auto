@@ -24,14 +24,14 @@ class RGBDriver(Node):
         # This is special for Gazebo - subscriber QOS must match publisher QOS
         self.QOS = QoSProfile(
             depth=3,
-            reliability=2, # Best effort
+            reliability=1, # Best effort
             history=1,     # Keep last
             durability=2   # Volatile
         )
 
         # TODO change default values
-        self.declare_parameter('publish_raw', True)
-        self.declare_parameter('publish_compressed', False)
+        self.declare_parameter('publish_raw', False)
+        self.declare_parameter('publish_compressed', True)
 
         self.publish_compressed = self.get_parameter('publish_compressed').value
         self.publish_raw = self.get_parameter('publish_raw').value

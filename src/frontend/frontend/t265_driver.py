@@ -14,7 +14,7 @@ from rclpy.node import Node, QoSProfile
 T265_SN = '943222111294'
 COV = 0.01
 
-X_OFFSET = 0.0      # How far forward the camera is from the base
+X_OFFSET = 0.35      # How far forward the camera is from the base
 Z_OFFSET = 0.0     # How far up the camera is from the base
 ROBOT_HEIGHT = 0.22 # How far the base_link is from the ground
 

@@ -23,20 +23,41 @@ def generate_launch_description():
     FSM_FILE = '/home/max/Documents/robotics/upmoon25-auto/src/backend/resource/fsm.txt'
     NAV2_CONFIG = '/home/max/Documents/robotics/sim/src/sim/config/nav2_config.yaml'
 
-
-    xacro_file = "/home/upmoon25/ros2/upmoon25-auto/src/backend/description/robot.urdf.xacro"
-    robot_description_raw = xacro.process_file(xacro_file).toxml()
     
-    node_robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
+    map_odom_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=[
+            '0', '0', '0', '0', '0', '0',
+            'map', 'odom'
+        ],
+        parameters=[{
+            'use_sim_time': True
+        }]
+    )
+
+    mapper = Node(
+        package='backend',
+        executable='global_mapper',
         output='screen',
         parameters=[{
-        'robot_description': robot_description_raw,
-        'use_sim_time': True}]
+            'use_sim_data': False,
+            'map_on': True,
+            'use_sim_time': True
+        }]
     )
-   
-    
+
+    costmapper = Node(
+        package='backend',
+        executable='global_costmapper',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True
+        }]
+    )
+
     return launch.LaunchDescription([
-        node_robot_state_publisher,
+        map_odom_tf,
+        mapper,
+        costmapper,
     ])

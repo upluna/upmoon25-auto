@@ -8,14 +8,15 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import PointCloud2
 from visualization_msgs.msg import Marker
-from geometry_msgs.msg import Pose, Vector3
+from geometry_msgs.msg import Pose, Vector3, Point, Quaternion
 from nav_msgs.msg import OccupancyGrid, MapMetaData, Odometry
 from map_msgs.msg import OccupancyGridUpdate
-from std_msgs.msg import Header, Int8, Float32
+from std_msgs.msg import Header, Int8, Float32, ColorRGBA
+from visualization_msgs.msg import Marker
 from scipy.interpolate import griddata
 
-OBS_MAX_Z = 0.12
-OBS_MIN_Z = -0.35
+OBS_MAX_Z = -0.1
+OBS_MIN_Z = -0.8
 DEBUG = True
 HEIGHTMAP = False
 
@@ -96,11 +97,13 @@ class GlobalMapper(Node):
         # Setup subscribers and publishers
         self.SUB_depth  = self.create_subscription(PointCloud2, '/camera/depth/points', callback=self.handleDepth, qos_profile=self.QOS, callback_group=sub_group)
         self.SUB_cmd    = self.create_subscription(Int8, '/cmd_map', callback=self.handleCmd, qos_profile=self.QOS, callback_group=sub_group)
+        self.SUB_marker = self.create_subscription(Point, '/cmd_map_marker', callback=self.handleMarkerCmd, qos_profile=self.QOS, callback_group=sub_group)
         self.SUB_roboz  = self.create_subscription(Float32, '/robo_z', callback=self.handleRoboZ, qos_profile=self.QOS, callback_group=sub_group)
         #self.SUB_mapcmd = self.create_subscription(MapCmd, '/cmd_map', callback=self.handleCmd, qos_profile=self.QOS, callback_group=sub_group)
 
         self.PUB_global = self.create_publisher(OccupancyGrid, '/map/global', qos_profile=self.NAV_QOS)
         self.PUB_update = self.create_publisher(OccupancyGridUpdate, '/map/global_updates', qos_profile=self.NAV_QOS)
+        self.PUB_marker = self.create_publisher(Marker, '/map_marker', qos_profile=self.QOS)
 
         # Map update clock
         self.timer = self.create_timer(self.HZ, self.clk)
@@ -110,6 +113,34 @@ class GlobalMapper(Node):
         self.static_map_odom_tf = None
 
         self.get_logger().info("Initialized")
+
+    def handleMarkerCmd(self, cmd):
+        msg = Marker()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'map'
+
+        msg.type=0
+        msg.id = 1
+        msg.action = 0
+        msg.ns = "fuck"
+
+        msg.color = ColorRGBA()
+        msg.color.r = 1.0
+        msg.color.g = 0.0
+        msg.color.b = 0.0
+        msg.color.a = 1.0
+
+        msg.pose = Pose()
+        msg.pose.position.x = cmd.x
+        msg.pose.position.y = cmd.y
+        msg.pose.position.z = 1.5
+
+        msg.pose.orientation = Quaternion()
+        np_quat = quaternion.from_euler_angles(0, np.pi / 2, 0)
+        msg.pose.orientation.x = np_quat.x
+        msg.pose.orientation.y = np_quat.y
+        msg.pose.orientation.z = np_quat.z
+        msg.pose.orientation.w = np_quat.w
 
     def clk(self):
         self.update = True
@@ -136,7 +167,8 @@ class GlobalMapper(Node):
     def filterSnapPoints(self, points):
         self.grid.fill(0.0)
 
-        # Filter points        
+        # Filter points
+                
         valid_mask =  (points[: , 2] < self.TOP_CLIP) & \
                       (points[: , 2] > self.BOTTOM_CLIP)
         points = points[valid_mask]
@@ -211,7 +243,13 @@ class GlobalMapper(Node):
         if (tf == None):
             return (points, False)
         
-        valid_mask = (points[:, 2] != 0) & (points[:, 2] != np.inf)
+        valid_mask = None
+
+        if self.use_sim_data:
+            valid_mask = (points[:, 2] != 0) & (points[:, 2] != np.inf)
+        else:
+            valid_mask = (points[:, 2] != 0) & (points[:, 2] != np.inf) & (points[:, 2] <= 3)
+
         points = points[valid_mask]
 
         tf_rot = tf.transform.rotation
@@ -244,14 +282,14 @@ class GlobalMapper(Node):
         self.detectObstacles()
         
         
-        if (self.first_gen):
-            self.first_gen = False
-            self.publishObstacleMap(stamp)
-        else:
-            self.publishObstacleMapUpdate(stamp, x_min, x_max, y_min, y_max)
+        #if (self.first_gen):
+        #    self.first_gen = False
+        #    self.publishObstacleMap(stamp)
+        #else:
+        #    self.publishObstacleMapUpdate(stamp, x_min, x_max, y_min, y_max)
         
 
-        #self.publishObstacleMap(stamp)
+        self.publishObstacleMap(stamp)
 
         self.update = False
 
