@@ -2,6 +2,9 @@ import rclpy
 import numpy as np
 import quaternion
 import math
+import tf2_ros
+import tf2_geometry_msgs
+
 
 from rclpy.node import Node, QoSProfile
 from geometry_msgs.msg import Pose, PoseStamped, Vector3, Twist, Quaternion
@@ -31,7 +34,7 @@ class MinerState(Enum):
     DRIVE_TO_DIG = 5
     LOWER_BUCKET = 6
     RAISE_BUCKET = 7
-    WAIT = 8
+    BUCKET_ALARM = 8
 
 # SETPOINTS:
 CLK = 0.05
@@ -39,8 +42,8 @@ BUCKET_LOWERED_POS = 45 #TODO:
 DIG_SPEED = -15.0
 MOVE_SPEED = 45.0
 BUCKET_INCREMENTAL_LOWER = 2 #TODO
-IR_THRESHOLD = 400 #<-Real Value!
-BUCKET_SLOW_SPEED = 40
+IR_THRESHOLD = 400 #<-Real Value = 400
+BUCKET_SLOW_SPEED = 30
 
 class MiningController(Node):
 
@@ -65,13 +68,21 @@ class MiningController(Node):
         )
 
         self.create_subscription(PoseStamped, '/cmd/miner', self.onCmd, cmd_QOS)
-        self.create_subscription(Odometry, '/odom', self.onOdom, self.QOS)
+        #self.create_subscription(Odometry, '/odom', self.onOdom, self.QOS)
+        self.create_subscription(PoseStamped, '/camera/rgb/tag_pose', self.onTagPose, self.QOS)
 
         self.ir_distance = 0
         self.create_subscription(Int16, '/sensor/ir', self.onIR, self.QOS)
 
+        self.bucket_alarm = 0
+        self.prev_bucket_alarm = 0
+        self.create_subscription(Int16, '/sensor/bucket_alarm', self.onBucketAlarm, self.QOS)
+
         self.PUB_marker = self.create_publisher(Marker, '/miner_marker', self.QOS)
         self.timer = self.create_timer(CLK, self.state_check)
+
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         self.velocity_pub = self.create_publisher(Twist, 'cmd/velocity', 10)
         self.conveyor_pub = self.create_publisher(Int16, 'cmd/conveyor', 10)
@@ -93,10 +104,13 @@ class MiningController(Node):
 
         self.rec_init = None
         self.rec_dump = None
-        self.run_init = None
+        self.run_init = np.array([0.0, 0.0, 0.0])
+        self.back_dist = 0.0
 
         self.abort = False
         self.first = True
+
+        self.prev_state = MinerState.STOPPED
 
         self.clock = 0
         self.clock_start = 0
@@ -107,6 +121,32 @@ class MiningController(Node):
         self.pos     = np.array([0.0 ,0.0 ,0.0])
 
         self.state = MinerState.STOPPED
+
+    def getTransform(self, stamp):
+        transform = None
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                'odom', 'rgb_link_optical', rclpy.time.Time()
+            )
+        except Exception as e:
+            self.get_logger().error("Could not find transform!")
+            self.get_logger().error(f'{e}')
+
+        return transform
+
+    def onTagPose(self, msg):
+
+        transform = self.getTransform(msg.header.stamp)
+        if transform == None: return
+
+        transform_pose = tf2_geometry_msgs.do_transform_pose(msg.pose, transform)
+
+        # Need to transform to base_link
+        self.pos[0] = transform_pose.position.x
+        self.pos[1] = transform_pose.position.y
+        self.pos[2] = transform_pose.position.z
+
+        #self.get_logger().info(f'POSE: {self.pos[0]}, {self.pos[1]}, {self.pos[2]}')
 
     def onOdom(self, msg):
         msg = msg.pose.pose
@@ -136,7 +176,7 @@ class MiningController(Node):
             self.onRecDump(msg.pose)
         elif cmd_name == 'run':
             self.state = MinerState.DRIVE_TO_START
-            self.run_init = self.pos
+            self.setRunInit()
         elif cmd_name == 'abort':
             self.abort = True
             self.state = MinerState.STOPPED
@@ -144,29 +184,24 @@ class MiningController(Node):
     def onIR(self, msg):
         self.ir_distance = msg.data
 
-    def onRecInit(self, pose):
-        dist = pose.position.x
-        new_forward = self.forward * dist
+    def onBucketAlarm(self, msg):
+        self.prev_bucket_alarm = self.bucket_alarm
+        self.bucket_alarm = msg.data
 
-        self.rec_init = self.pos + new_forward
+    def onRecInit(self, pose):
+        self.rec_init = pose.position.x
 
 
     def onRecDump(self, pose):
-        dist = pose.position.x
-        new_forward = self.forward * dist
-
-        self.rec_dump = self.pos + new_forward
+        self.rec_dump = pose.position.x
 
 
     def onMark(self, pose):
         dist = pose.position.x
-        new_forward = self.forward * dist
-
-        marker_pos = self.pos + new_forward
 
         msg = Marker()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = 'odom'
+        msg.header.frame_id = 'base_link'
 
         msg.type=0
         msg.id = 1
@@ -180,9 +215,9 @@ class MiningController(Node):
         msg.color.a = 1.0
 
         msg.pose = Pose()
-        msg.pose.position.x = marker_pos[0]
-        msg.pose.position.y = marker_pos[1]
-        msg.pose.position.z = marker_pos[2] + 1.5
+        msg.pose.position.x = float(dist)
+        msg.pose.position.y = 0.0
+        msg.pose.position.z = 1.5
 
         msg.pose.orientation = Quaternion()
         np_quat = quaternion.from_euler_angles(0, np.pi / 2, 0)
@@ -203,15 +238,26 @@ class MiningController(Node):
 
         self.PUB_marker.publish(msg)
 
+    def setRunInit(self):
+        self.run_init[0] = self.pos[0]
+        self.run_init[1] = self.pos[1]
+        self.run_init[2] = self.pos[2]
+
     # p is a pose
     def getDist(self, p):
         return math.sqrt(
             (self.pos[0] - p[0])**2 +
-            (self.pos[1] - p[1])**2 
+            (self.pos[1] - p[1])**2 +
+            (self.pos[2] - p[2])**2
         )
 
     def state_check(self):
         self.clock += CLK
+        if (self.bucket_alarm == 1 and self.prev_bucket_alarm == 0): # Rising edge case
+            self.state = MinerState.BUCKET_ALARM
+            self.get_logger().error("Bucket Chain Stall Detected! Attempting Recovery")
+            self.clock_start = self.clock
+        
         if self.state == MinerState.STOPPED:
             self.velocity.angular.z = 0.0
             self.velocity.linear.x = 0.0
@@ -231,23 +277,25 @@ class MiningController(Node):
             self.first = False
 
         elif self.state == MinerState.DRIVE_TO_START:
-            distance = self.getDist(self.rec_init)
+            distance = self.getDist(self.run_init)
+
+            self.get_logger().info(f'run_init {self.run_init}, pos {self.pos}')
             self.get_logger().info(f'Distance: {distance}')
 
             self.velocity.linear.x = 1.0 * MOVE_SPEED
 
-            if distance <= 0.1:
+            if distance >= self.rec_init:
                 self.get_logger().info("Completed start drive")
                 self.state = MinerState.LOWER_BUCKET
                 self.velocity.linear.x = 0.0
                 self.clock_start = self.clock
+                self.setRunInit()
                 self.bucket_pos.data = 0
 
         elif self.state == MinerState.LOWER_BUCKET:
             if (BUCKET_CHAIN_ON):
                 self.bucket_vel.data = 100 # full speed !!
 
-            self.get_logger().info(f'IR: {self.ir_distance}')
             if ((self.clock - self.clock_start >= 0.65) and self.ir_distance < IR_THRESHOLD):
                 self.clock_start = self.clock
                 self.bucket_pos.data += 2
@@ -255,7 +303,7 @@ class MiningController(Node):
             if (self.ir_distance >= IR_THRESHOLD):
                 self.state = MinerState.DIG # presumably we are lowered and spinning, move on the the DIG state
                 self.clock_start = self.clock
-                self.get_logger().info("Digging...")
+                self.setRunInit()
             
         elif self.state == MinerState.DIG:
             self.velocity.linear.x = DIG_SPEED
@@ -269,15 +317,22 @@ class MiningController(Node):
 
                 self.get_logger().info("Raising bucket....")
 
+                # Calc distance backwards we've travelled
+                self.back_dist = self.getDist(self.run_init)
+                self.get_logger().info(f'Travelled backwards {self.back_dist}')
+
+                self.setRunInit()
+
+
         elif self.state == MinerState.RAISE_BUCKET:
             self.bucket_pos.data = 0
 
             self.bucket_vel.data = 100
 
-            if (self.clock - self.clock_start >= 15):
+            if (self.clock - self.clock_start >= 5):
                 self.state = MinerState.DRIVE_TO_DUMP
                 self.clock_start = self.clock
-                self.bucket_vel.data = 0
+                self.bucket_vel.data = BUCKET_SLOW_SPEED
                 self.get_logger().info("Driving to dump")
             elif (self.clock - self.clock_start >= 10):
                 self.bucket_vel.data = -BUCKET_SLOW_SPEED
@@ -285,12 +340,17 @@ class MiningController(Node):
                 self.bucket_vel.data = BUCKET_SLOW_SPEED
 
         elif self.state == MinerState.DRIVE_TO_DUMP:
-            distance = self.getDist(self.rec_dump)
-            self.get_logger().info(f'Distance: {distance}')
+            distance = self.getDist(self.run_init)
+            #self.get_logger().info(f'Distance: {distance}')
 
             self.velocity.linear.x = 1.0 * MOVE_SPEED
 
-            if distance <= 0.1:
+            if (self.clock - self.clock_start >= 10):
+                self.bucket_vel.data = 0
+            elif (self.clock -self.clock_start >= 5):
+                self.bucket_vel.data = -BUCKET_SLOW_SPEED
+
+            if distance >= self.rec_dump + self.back_dist:
                 self.get_logger().info("Completed dump drive")
                 self.state = MinerState.DUMP
                 self.velocity.linear.x = 0.0
@@ -298,24 +358,47 @@ class MiningController(Node):
 
         elif self.state == MinerState.DUMP:
             self.conveyor.data = 1
+            self.bucket_vel.data = 0
 
             if (self.clock - self.clock_start >= 10):
                 self.state = MinerState.DRIVE_TO_DIG
                 self.conveyor.data = 0
+                self.setRunInit()
                 self.get_logger().info("Driving to dig")
 
         elif self.state == MinerState.DRIVE_TO_DIG:
-            distance = self.getDist(self.rec_init)
+            distance = self.getDist(self.run_init)
             self.get_logger().info(f'Distance: {distance}')
 
             self.velocity.linear.x = -1.0 * MOVE_SPEED
 
-            if distance <= 0.1:
+            if distance >= self.rec_dump:
                 self.num_iterations += 1
                 self.get_logger().info("Completed dig drive, driving to dump")
                 self.state = MinerState.LOWER_BUCKET
+                self.setRunInit()
                 self.clock_start = self.clock
                 self.velocity.linear.x = 0.0
+
+        elif self.state == MinerState.BUCKET_ALARM:
+            self.bucket_pos.data = 0
+
+            self.bucket_vel.data = 0
+
+            if (self.clock - self.clock_start >= 15):
+                if (self.bucket_alarm == 0):
+                    self.state = MinerState.DRIVE_TO_START
+                    self.clock_start = self.clock
+                    self.get_logger().warn("Recovered successfully! Restarting Cycle")
+                else:
+                    self.state = MinerState.STOPPED
+                    self.abort = True
+                    self.get_logger().error("Failed to Recover! Aborting...")
+            elif (self.clock - self.clock_start >= 10):
+                self.bucket_vel.data = +BUCKET_SLOW_SPEED
+            elif (self.clock -self.clock_start >= 5):
+                self.bucket_vel.data = -BUCKET_SLOW_SPEED
+
 
         if self.state != MinerState.STOPPED:
             self.velocity_pub.publish(self.velocity)

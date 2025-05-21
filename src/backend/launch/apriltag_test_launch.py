@@ -36,48 +36,46 @@ def generate_launch_description():
         'use_sim_time': True}]
     )
    
-    
-    map_odom_tf = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        arguments=[
-            '0', '0', '0', '0', '0', '0',
-            'map', 'odom'
-        ]
-    )
-
-    odom_base_link_tf = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        arguments=[
-            '0', '0', '0', '0', '0', '0',
-            'odom', 'base_link'
-        ]
-    )
-
-    head_controller = Node(
-        package='backend',
-        executable='head_controller',
-        output='screen',
-        parameters=[{
-            'use_sim_data': False
-        }]
-    )
-
     rgb_driver = Node(
         package='frontend',
         executable='rgb_driver',
         output='screen',
         parameters=[{
-            'publish_raw' : True,
-            'publish_compressed' : False
+            'publish_raw' : False,
+            'publish_compressed' : True
         }]
+    )
+
+    t265_driver = Node(
+        package='frontend',
+        executable='t265_driver',
+        output='screen',
+    )
+
+    tag_detector = Node(
+        package='frontend',
+        executable='tag_detector',
+        output='screen',
+    )
+
+    arduino_driver = Node(
+        package='frontend',
+        executable='arduino_driver',
+        name='arduino_driver_node',
+        output='screen'
+    )
+
+    joint_state = Node(
+        package='joint_state_publisher',
+        executable='joint_state_publisher',
+        output='screen',
     )
 
     return launch.LaunchDescription([
         node_robot_state_publisher,
-        odom_base_link_tf,
-        map_odom_tf,
+        tag_detector,
         rgb_driver,
-        head_controller,
+        t265_driver,
+        #arduino_driver,
+        #joint_state
     ])
