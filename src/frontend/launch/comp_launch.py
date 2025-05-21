@@ -71,18 +71,19 @@ def generate_launch_description():
             }]
         ),
         Node(
+        package='frontend',
+        executable='tag_detector',
+        output='screen',
+        parameters=[{
+                'publish_raw': False,
+                'publish_compressed': True
+            }]
+        ),
+        Node(
             package='backend',
             executable='mining_controller',
             name='mining_controller',
             output='screen'
-        ),
-        Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        output='screen',
-        parameters=[{
-        'robot_description': robot_description_raw,
-        'use_sim_time': True}]
         ),
         Node(
         package='tf2_ros',

@@ -9,6 +9,8 @@ from sensor_msgs.msg import CompressedImage, Image, CameraInfo
 from rclpy.node import Node, QoSProfile
 from cv_bridge import CvBridge
 
+ERROR_CORRECTION = False
+
 # Spits out tag detection data from image stream
 class TagDetector(Node):
 
@@ -70,6 +72,12 @@ class TagDetector(Node):
             pose_msg.pose.position.x = float(detection.pose_t[0])
             pose_msg.pose.position.y = float(detection.pose_t[1])
             pose_msg.pose.position.z = float(detection.pose_t[2])
+
+            if (ERROR_CORRECTION):
+                pose_msg.pose.position.x = pose_msg.pose.position.x * 1.07636 - 11.03795
+                pose_msg.pose.position.y = pose_msg.pose.position.y * 1.07636 - 11.03795
+                pose_msg.pose.position.z = pose_msg.pose.position.z * 1.07636 - 11.03795
+
 
             self.PUB_pose.publish(pose_msg)
 

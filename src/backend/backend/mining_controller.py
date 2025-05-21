@@ -2,6 +2,9 @@ import rclpy
 import numpy as np
 import quaternion
 import math
+import tf2_ros
+import tf2_geometry_msgs
+
 
 from rclpy.node import Node, QoSProfile
 from geometry_msgs.msg import Pose, PoseStamped, Vector3, Twist, Quaternion
@@ -39,8 +42,8 @@ BUCKET_LOWERED_POS = 45 #TODO:
 DIG_SPEED = -15.0
 MOVE_SPEED = 45.0
 BUCKET_INCREMENTAL_LOWER = 2 #TODO
-IR_THRESHOLD = 400 #<-Real Value!
-BUCKET_SLOW_SPEED = 40
+IR_THRESHOLD = 400 #<-Real Value = 400
+BUCKET_SLOW_SPEED = 30
 
 class MiningController(Node):
 
@@ -77,6 +80,9 @@ class MiningController(Node):
 
         self.PUB_marker = self.create_publisher(Marker, '/miner_marker', self.QOS)
         self.timer = self.create_timer(CLK, self.state_check)
+
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         self.velocity_pub = self.create_publisher(Twist, 'cmd/velocity', 10)
         self.conveyor_pub = self.create_publisher(Int16, 'cmd/conveyor', 10)
@@ -116,12 +122,31 @@ class MiningController(Node):
 
         self.state = MinerState.STOPPED
 
+    def getTransform(self, stamp):
+        transform = None
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                'odom', 'rgb_link_optical', rclpy.time.Time()
+            )
+        except Exception as e:
+            self.get_logger().error("Could not find transform!")
+            self.get_logger().error(f'{e}')
+
+        return transform
+
     def onTagPose(self, msg):
 
+        transform = self.getTransform(msg.header.stamp)
+        if transform == None: return
+
+        transform_pose = tf2_geometry_msgs.do_transform_pose(msg.pose, transform)
+
         # Need to transform to base_link
-        self.pos[0] = msg.pose.position.x
-        self.pos[1] = msg.pose.position.y
-        self.pos[2] = msg.pose.position.z
+        self.pos[0] = transform_pose.position.x
+        self.pos[1] = transform_pose.position.y
+        self.pos[2] = transform_pose.position.z
+
+        #self.get_logger().info(f'POSE: {self.pos[0]}, {self.pos[1]}, {self.pos[2]}')
 
     def onOdom(self, msg):
         msg = msg.pose.pose
@@ -173,13 +198,10 @@ class MiningController(Node):
 
     def onMark(self, pose):
         dist = pose.position.x
-        new_forward = self.forward * dist
-
-        marker_pos = self.pos + new_forward
 
         msg = Marker()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = 'odom'
+        msg.header.frame_id = 'base_link'
 
         msg.type=0
         msg.id = 1
@@ -193,9 +215,9 @@ class MiningController(Node):
         msg.color.a = 1.0
 
         msg.pose = Pose()
-        msg.pose.position.x = marker_pos[0]
-        msg.pose.position.y = marker_pos[1]
-        msg.pose.position.z = marker_pos[2] + 1.5
+        msg.pose.position.x = float(dist)
+        msg.pose.position.y = 0.0
+        msg.pose.position.z = 1.5
 
         msg.pose.orientation = Quaternion()
         np_quat = quaternion.from_euler_angles(0, np.pi / 2, 0)
@@ -281,7 +303,7 @@ class MiningController(Node):
             if (self.ir_distance >= IR_THRESHOLD):
                 self.state = MinerState.DIG # presumably we are lowered and spinning, move on the the DIG state
                 self.clock_start = self.clock
-                self.get_logger().info("Digging...")
+                self.setRunInit()
             
         elif self.state == MinerState.DIG:
             self.velocity.linear.x = DIG_SPEED
@@ -307,10 +329,10 @@ class MiningController(Node):
 
             self.bucket_vel.data = 100
 
-            if (self.clock - self.clock_start >= 15):
+            if (self.clock - self.clock_start >= 5):
                 self.state = MinerState.DRIVE_TO_DUMP
                 self.clock_start = self.clock
-                self.bucket_vel.data = 0
+                self.bucket_vel.data = BUCKET_SLOW_SPEED
                 self.get_logger().info("Driving to dump")
             elif (self.clock - self.clock_start >= 10):
                 self.bucket_vel.data = -BUCKET_SLOW_SPEED
@@ -319,9 +341,14 @@ class MiningController(Node):
 
         elif self.state == MinerState.DRIVE_TO_DUMP:
             distance = self.getDist(self.run_init)
-            self.get_logger().info(f'Distance: {distance}')
+            #self.get_logger().info(f'Distance: {distance}')
 
             self.velocity.linear.x = 1.0 * MOVE_SPEED
+
+            if (self.clock - self.clock_start >= 10):
+                self.bucket_vel.data = 0
+            elif (self.clock -self.clock_start >= 5):
+                self.bucket_vel.data = -BUCKET_SLOW_SPEED
 
             if distance >= self.rec_dump + self.back_dist:
                 self.get_logger().info("Completed dump drive")
@@ -331,6 +358,7 @@ class MiningController(Node):
 
         elif self.state == MinerState.DUMP:
             self.conveyor.data = 1
+            self.bucket_vel.data = 0
 
             if (self.clock - self.clock_start >= 10):
                 self.state = MinerState.DRIVE_TO_DIG

@@ -35,9 +35,6 @@ class DepthDriver(Node):
 
         self.PUB_pc = self.create_publisher(PointCloud2, '/camera/depth/points', self.QOS)
 
-        if self.demand_publish:
-            self.create_timer(DEPTH_FREQUENCY, self.onTimer)
-
         # Filters for pointcloud data
         self.dec_filter = rs.decimation_filter()
         self.dec_filter.set_option(rs.option.filter_magnitude, 3)
@@ -60,7 +57,7 @@ class DepthDriver(Node):
 
         if self.demand_publish:
             self.create_subscription(Int8, '/cmd/pointcloud', self.onCmd, 1)
-            self.create_timer(DEPTH_FREQUENCY, self.onTimer)
+            #self.create_timer(DEPTH_FREQUENCY, self.onTimer)
             return
 
         while True:

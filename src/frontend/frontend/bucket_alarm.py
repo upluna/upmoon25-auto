@@ -24,6 +24,7 @@ class BucketAlarm(Node):
         else:
             msg.data = 1    # 1 means the alarm is on
         
+        print(msg.data)
         self.publisher.publish(msg)
 
     def destroy_node(self):

@@ -35,7 +35,8 @@ from sensor_msgs.msg import JointState
 '''
 
 DEBUG = False
-PAN_MAX = 180
+PAN_MAX = 170
+PAN_MIN = 10
 
 PAN_ANG_0 = 0
 PAN_ANG_180 = 280
@@ -116,14 +117,14 @@ class ArduinoDriver(Node):
         # Transform broadcasters
         self.PUB_joint = self.create_publisher(JointState, '/joint_states', 3, callback_group=sub_cb)
 
-        self.create_timer(0.01, self.camTick, sub_cb)
-        self.create_timer(0.01, self.handleSerial, pub_cb)
+        self.create_timer(0.005, self.camTick, sub_cb)
+        self.create_timer(0.005, self.handleSerial, pub_cb)
 
         self.write = True # Set to true whenever cam pan is updated, false when written to Arduino
         self.pan_state = PanState.STOP
-        self.cam_pan = 0 # 0 to PAN_MAX degrees (?)
+        self.cam_pan = PAN_MIN # 0 to PAN_MAX degrees (?)
 
-        self.cam_height = 100
+        self.cam_height = 0
         self.cam_height_tf = 0.0
         self.bucket_height = 0
 
@@ -150,7 +151,7 @@ class ArduinoDriver(Node):
             self.write = False
 
             # Pad with zeroes so arduino is always getting the same size input
-            cam_pan_pad = str(self.cam_pan).zfill(3)
+            cam_pan_pad = str(round(self.cam_pan)).zfill(3)
             cam_height_pad = str(self.cam_height).zfill(3)
             bucket_height_pad = str(self.bucket_height).zfill(3)
 
@@ -189,20 +190,20 @@ class ArduinoDriver(Node):
     # Updates the cam pan
     def camTick(self):
         if (self.pan_state == PanState.LEFT):
-            self.cam_pan -= 1
+            self.cam_pan -= 0.5
             self.write = True
         elif (self.pan_state == PanState.RIGHT):
-            self.cam_pan += 1
+            self.cam_pan += 0.5
             self.write = True
 
-        if (self.cam_pan < 0):
-            self.cam_pan = 0
+        if (self.cam_pan < PAN_MIN):
+            self.cam_pan = PAN_MIN
         elif(self.cam_pan > PAN_MAX):
             self.cam_pan = PAN_MAX
         
         # Publish the current camera pan
         msg = Int16()
-        msg.data = self.cam_pan
+        msg.data = int(self.cam_pan)
         self.PUB_campan.publish(msg)
 
         # Logic for approximating position of linear servo
