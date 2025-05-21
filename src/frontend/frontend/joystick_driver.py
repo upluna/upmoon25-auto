@@ -78,11 +78,6 @@ class JoystickDriver(Node):
         num_axes = self.controller.get_numaxes()
         print("Buttons: " + str(num_buttons) + " Axes: " + str(num_axes))
 
-        # Auto set camera height to 100
-        msg = Int16()
-        msg.data = 100
-        self.camera_height_pub.publish(msg)
-
         self.FPS = 25
 
     # Publishes joystick inputs
@@ -181,7 +176,12 @@ class JoystickDriver(Node):
         else:
             msg.data = 0
 
-        self.camera_pan_pub.publish(msg)         
+        self.camera_pan_pub.publish(msg)  
+
+        # Auto set camera height to 100
+        msg = Int16()
+        msg.data = 100
+        self.camera_height_pub.publish(msg)
 
         pygame.display.update()
         pygame.time.Clock().tick(self.FPS)

@@ -5,7 +5,6 @@ trap "echo 'Shutting down...'; kill 0" EXIT
 source install/local_setup.bash
 echo Launching Nodes...
 rviz2 &
-ros2 run frontend rgb_transport &
 
 if [ "$1" = "record" ]; then
     ros2 bag record /odom /camera /depth /points &
