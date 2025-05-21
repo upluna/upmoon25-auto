@@ -81,9 +81,9 @@ class T265Driver(Node):
         #
         # We also perform the transform from the optical frame to the actual camera frame here
         point = Point()
-        point.x = -data.translation.z 
-        point.y = -data.translation.x 
-        point.z = data.translation.y 
+        point.x = 0.0 # -data.translation.z 
+        point.y = 0.0 # -data.translation.x 
+        point.z = 0.0 # data.translation.y 
 
         quat = Quaternion()
         quat.x = -data.rotation.z
@@ -92,23 +92,23 @@ class T265Driver(Node):
         quat.w = data.rotation.w
 
         # We now perform the offset calculation
-        np_quat = quaternion.from_float_array([quat.w, quat.x, quat.y, quat.z])
-        forward_vec = quaternion.rotate_vectors(np_quat, [1, 0, 0])
-        up_vec = quaternion.rotate_vectors(np_quat, [0, 0, 1])
+        #np_quat = quaternion.from_float_array([quat.w, quat.x, quat.y, quat.z])
+        #forward_vec = quaternion.rotate_vectors(np_quat, [1, 0, 0])
+        #up_vec = quaternion.rotate_vectors(np_quat, [0, 0, 1])
 
-        forward_vec *= X_OFFSET
-        up_vec *= Z_OFFSET
-        point.x = point.x - forward_vec[0] - up_vec[0]
-        point.y = point.y - forward_vec[1] - up_vec[1]
-        point.z = point.z - forward_vec[2] - up_vec[2] + ROBOT_HEIGHT
+        #forward_vec *= X_OFFSET
+        #up_vec *= Z_OFFSET
+        #point.x = point.x - forward_vec[0] - up_vec[0]
+        #point.y = point.y - forward_vec[1] - up_vec[1]
+        #point.z = point.z - forward_vec[2] - up_vec[2] + ROBOT_HEIGHT
 
-        if self.init_pose is None:
-            self.init_pose = point
-            return
+        #if self.init_pose is None:
+        #    self.init_pose = point
+        #    return
 
-        point.x = point.x - self.init_pose.x
-        point.y = point.y - self.init_pose.y
-        point.z = point.z - self.init_pose.z
+        #point.x = point.x - self.init_pose.x
+        #point.y = point.y - self.init_pose.y
+        #point.z = point.z - self.init_pose.z
 
         #self.get_logger().info(f'ORIENTATION: {np_quat.w}, {np_quat.x}, {np_quat.y}, {np_quat.z}')
 
@@ -147,9 +147,9 @@ class T265Driver(Node):
         t.header.frame_id = 'odom'
         t.child_frame_id = 'base_link'
 
-        t.transform.translation.x = point.x
-        t.transform.translation.y = point.y
-        t.transform.translation.z = point.z
+        t.transform.translation.x = 0.0 #point.x
+        t.transform.translation.y = 0.0 #point.y
+        t.transform.translation.z = 0.0 #point.z
 
         t.transform.rotation.x = quat.x
         t.transform.rotation.y = quat.y

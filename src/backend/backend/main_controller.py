@@ -25,6 +25,22 @@ class Command():
     def execute(self, args):
         pass
 
+class PointCloudCommand(Command):
+
+    def __init__(self):
+        super().__init__(name='pc')
+
+        self.PUB_pc = None
+
+    def onLink(self):
+        self.PUB_pc = self.node.create_publisher(Int8, '/cmd/pointcloud', 1)
+
+    def execute(self, args):
+        msg = Int8()
+        msg.data = 1
+
+        self.PUB_pc.publish(msg)
+
 class FindTagCommand(Command):
 
     def __init__(self):
@@ -236,6 +252,8 @@ class MainController(Node):
         self.registerNewCommand(LocalizeCommand())
         self.registerNewCommand(GoToCommand())
         self.registerNewCommand(Miner())
+        self.registerNewCommand(PointCloudCommand())
+
 
         self.get_logger().info("Initialized")
 

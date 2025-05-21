@@ -52,15 +52,40 @@ def generate_launch_description():
        output='screen'
     )
 
+    arduino_driver = Node(
+       package='frontend',
+       executable='arduino_driver',
+       output='screen'
+    )
+
+    rgb_driver = Node(
+       package='frontend',
+       executable='rgb_driver',
+       output='screen'
+    )
+
     t265_driver = Node(
        package='frontend',
        executable='t265_driver',
        output='screen'
     )
 
+    tag_detector = Node(
+       package='frontend',
+       executable='tag_detector',
+       output='screen',
+       parameters=[{
+            'publish_raw': False,
+            'publish_compressed': True
+       }]
+    )
+
     return launch.LaunchDescription([
         node_robot_state_publisher,
         miner_controller,
         map_odom_tf,
+        arduino_driver,
+        rgb_driver,
         t265_driver,
+        tag_detector
     ])
