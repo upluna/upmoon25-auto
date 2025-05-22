@@ -4,7 +4,7 @@ This repository contains both the ROS2 code and a guide for connecting to and op
 
 ## Setup
 ### Connecting to the Jetson
-- Ensure that the Jetson and your device are connected to the same network. This network must also be one in which the two devices can see (ping) each other. By default, the Jetson contains a startup script which will automatically connect it to the router's network (SSID `Team_30s`, password `UPRobotics!`). 
+- Ensure that the Jetson and your device are connected to the same network. This network must also be one in which the two devices can see (ping) each other. By default, the Jetson contains a startup script which will automatically connect it to the router's network (SSID `Team_30`, password `UPRobotics!`). 
 - Now you can SSH into the Jetson from your device:
 	- Acquire the Jetson's IP address. The Jetson is configured to use the static IP address `192.168.0.2` when connected to the the router. If It's not on the router, you'll have to acquire its IPV4 address by typing `iwconfig -a` into the console on the Jetson.
 	- On Ubuntu, type `ssh upmoon25@192.168.0.2` into the console. The password is `upmoon25`. 
