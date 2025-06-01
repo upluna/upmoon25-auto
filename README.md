@@ -35,6 +35,8 @@ Plug the joystick controller into the laptop. `cd` into the root workspace (`...
 2. `source install/local_setup.bash`
 3. `./RUN_LAPTOP_RC.bash` - This launches **rviz2** and the joystick control node.
     - Note: running `./RUN_LAPTOP_RC.bash record` will start a **rosbag** recording of the camera data along with launching the other nodes.
+4. The robot is now live and can be controlled using the joystick:
+![image](https://github.com/user-attachments/assets/cd5c4311-f8fa-4ea6-933d-198a95b25a23)
 
 #### Autonomy Laptop:
 `cd` into the root workspace (`.../upmoon25-auto`). In your console type the following commands:
