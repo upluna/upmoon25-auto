@@ -31,11 +31,12 @@ This project is designed to be run on three machines simulataneously; the Jetson
 
 #### RC Laptop:
 Plug the joystick controller into the laptop. `cd` into the root workspace (`.../upmoon25-auto`). In your console type the following commands:
-1. `./BUILD.bash`
-2. `source install/local_setup.bash`
-3. `./RUN_LAPTOP_RC.bash` - This launches **rviz2** and the joystick control node.
+1. `./INSTALL.bash` - This script only needs to be run once. The following commands need to be ran everytime you make changes to the project.
+2. `./BUILD.bash`
+3. `source install/local_setup.bash`
+4. `./RUN_LAPTOP_RC.bash` - This launches **rviz2** and the joystick control node.
     - Note: running `./RUN_LAPTOP_RC.bash record` will start a **rosbag** recording of the camera data along with launching the other nodes.
-4. The robot is now live and can be controlled using the joystick:
+5. The robot is now live and can be controlled using the joystick:
 ![image](https://github.com/user-attachments/assets/cd5c4311-f8fa-4ea6-933d-198a95b25a23)
 
 #### Autonomy Laptop:
@@ -44,5 +45,23 @@ Plug the joystick controller into the laptop. `cd` into the root workspace (`...
 2. `source install/local_setup.bash`
 3. `./MAX_RUN.sh`
 
+## Software Architecture
+### Overview
+The workspace is split into four packages:
+* *backend* - contains all code relevant to autonomous and semi-autonomous vehicle operations (path planning, automatic mining, motion planning, obstacle detection, behavior, remote control)
+* *frontend* - contains all code relevant to interacting with the vehicle hardware (interfacing with the arduino, controlling servos and motors).
+* *interfaces* - defines custom ROS2 messages and services which are used by nodes in either the frontend or backend
+* *sensor* - defines custom plugins for use in Gazebo, such as servo_plugin
 
+The backend communicates with the hardware via the frontend, which provides an abstraction layer that makes it easy to control the various components on the robot. For example - if a node in the backend (like `motion_controller`) wanted to make the robot move forward, it only needs to publish the appropriate message to the `/cmd_vel` topic. More details about the topics and nodes can be found in the source code.
 
+### Simulation
+The simulator, Gazebo, provides a very useful method for testing the autonomy system. Any developer working on the autonomy can use the simulator in order to accelerate development time, test aspects of the system in isolation, and work on the system while the physical robot is unavailable. The file `backend/launch/sim_launch.py` is an example launch file which will launch part the simulator. The `rc_controller` node should be started separately - this allows you to control the simulator robot.
+
+Additionally, the `gz_worlds` folder in the root directory contains worlds for the Gazebo simulator. You might find these useful - `arena1.world` is a 1:1 recreation of the Artemis arena, and contains rough terrain with craters and rocks.
+
+If you want to launch with a world, include the parameter `world:="path to world"`, i.e.,
+
+`ros2 launch backend launch.py world:=~/robotics/upmoon25/gz_worlds/arena1.world`
+
+If you want to launch headless (no GUI), include the parameter `gui:=false`
