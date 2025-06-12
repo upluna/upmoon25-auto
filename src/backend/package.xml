@@ -4,8 +4,8 @@
   <name>backend</name>
   <version>0.0.0</version>
   <description>Autonomy logic for 2025 competition vehicle</description>
-  <maintainer email="woodsm25@up.edu">Max</maintainer>
-  <maintainer email="cameron24@up.edu">Riley</maintainer>
+  <maintainer email="woodsm25@up.edu">Max Woods</maintainer>
+  <maintainer email="cameron24@up.edu">Riley Cameron</maintainer>
   <license>TODO: License declaration</license>
 
   <exec_depend>rclpy</exec_depend>

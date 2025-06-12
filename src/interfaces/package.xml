@@ -4,8 +4,8 @@
   <name>interfaces</name>
   <version>0.0.0</version>
   <description>Provides some services and messages for use by backend</description>
-  <maintainer email="woodsm25@up.edu">Max</maintainer>
-  <maintainer email="cameron24@up.edu">Riley</maintainer>
+  <maintainer email="woodsm25@up.edu">Max Woods</maintainer>
+  <maintainer email="cameron24@up.edu">Riley Cameron</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
