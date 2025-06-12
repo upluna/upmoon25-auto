@@ -16,6 +16,19 @@ RGB_SN = '018322071465'
 IMG_WIDTH = 640
 IMG_HEIGHT = 480
 
+'''
+    This node publishes the RGB image stream from the depth camera mounted on the robot's adjustable camera head.
+
+    Parameters:
+    publish_raw: bool, if True, the node will publish the raw RGB image
+    publish_compressed: bool, if True, the node will publish the compressed RGB image
+
+    Publishes:
+    /camera/rgb/camera_info - CameraInfo, the camera intrinsics and extrinsics, necessary for AprilTag processing
+    /camera/rgb/image_raw - Image, the raw RGB image from the camera
+    /camera/rgb/image_compressed - CompressedImage, the compressed RGB image from the camera
+    
+'''
 class RGBDriver(Node):
 
     def __init__(self):

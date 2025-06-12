@@ -1,15 +1,15 @@
 from launch import LaunchDescription
+from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
 import os
 import xacro
 
-
-xacro_file = "/home/upmoon25/ros2/upmoon25-auto/src/backend/description/robot.urdf.xacro"
-robot_description_raw = xacro.process_file(xacro_file).toxml()
-
 def generate_launch_description():
 
-    xacro_file = "/home/upmoon25/ros2/upmoon25-auto/src/backend/description/robot.urdf.xacro"
+    robot_file = 'sim_robot.urdf.xacro'
+
+    xacro_file = os.path.join(get_package_share_directory('backend'), f'description/{robot_file}')
+
     robot_description_raw = xacro.process_file(xacro_file).toxml()
     
     return LaunchDescription([
@@ -71,7 +71,7 @@ def generate_launch_description():
             }]
         ),
         Node(
-        package='frontend',
+        package='backend',
         executable='tag_detector',
         output='screen',
         parameters=[{

@@ -14,6 +14,12 @@ RAMP = 0xA0 # 10rpm/s
 
 STARTING_TORQUE = 0xFF # Range: 0x00 - 0xFF
 
+'''
+    This node operates the bucket chain. 
+
+    Subscrpitions:
+    /cmd/bucket_vel - Int16, the desired bucket chain speed in RPM
+'''
 class MotorControllerNode(Node):
     def __init__(self):
         super().__init__('bld515c_motor_controller')

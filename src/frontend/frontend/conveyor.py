@@ -3,6 +3,13 @@ from rclpy.node import Node
 import Jetson.GPIO as GPIO
 from std_msgs.msg import Int16
 
+'''
+
+    This node operates the conveyor belt on the robot.
+
+    Subscriptions:
+    /cmd/conveyor - Int16, 1 to turn on the conveyor, 0 to turn off
+'''''
 class Conveyor(Node):
     def __init__(self):
         super().__init__('conveyor')

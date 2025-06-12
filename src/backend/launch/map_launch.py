@@ -14,15 +14,6 @@ from launch_ros.actions import Node
 # ros2 launch sim launch.py world:=~/Documents/robotics/gz_worlds/arena1.world gui:=false
 
 def generate_launch_description():
-
-    # TODO this is a really stupid way of doing this
-
-    pkg_name = 'backend'
-    file_subpath = 'description/robot.urdf.xacro'
-
-    FSM_FILE = '/home/max/Documents/robotics/upmoon25-auto/src/backend/resource/fsm.txt'
-    NAV2_CONFIG = '/home/max/Documents/robotics/sim/src/sim/config/nav2_config.yaml'
-
     
     map_odom_tf = Node(
         package='tf2_ros',

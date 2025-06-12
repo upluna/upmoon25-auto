@@ -15,16 +15,11 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
 
-    # TODO this is a really stupid way of doing this
 
-    pkg_name = 'backend'
-    file_subpath = 'description/robot.urdf.xacro'
+    robot_file = 'robot.urdf.xacro'
 
-    FSM_FILE = '/home/max/Documents/robotics/upmoon25-auto/src/backend/resource/fsm.txt'
-    NAV2_CONFIG = '/home/max/Documents/robotics/sim/src/sim/config/nav2_config.yaml'
+    xacro_file = os.path.join(get_package_share_directory('backend'), f'description/{robot_file}')
 
-
-    xacro_file = "/home/upmoon25/ros2/upmoon25-auto/src/backend/description/robot.urdf.xacro"
     robot_description_raw = xacro.process_file(xacro_file).toxml()
     
     node_robot_state_publisher = Node(

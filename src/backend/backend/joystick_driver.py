@@ -43,6 +43,18 @@ POWER_BT = 8
 LSTICK_BT = 9
 RSTICK_BT = 10
 
+'''
+    This node allows the user to control the robot using a joystick.
+    TODO: which buttons do what?
+
+    Publishes:
+    /cmd/velocity - Twist, linear.x for forward/backward speed, angular.z for rotation speed
+    /cmd/conveyor - Int16, 1 to turn on the conveyor, 0 to turn off
+    /cmd/bucket_vel - Int16, speed of the bucket chain
+    /cmd/bucket_pos - Int16, position of the bucket chain
+    /cmd/pan - Int8, +1 for pan left, -1 for pan right, 0 for stop
+    /cmd/camera_height - Int16, 0 - 100 height percentage for the camera
+'''
 class JoystickDriver(Node):
 
     def __init__(self):

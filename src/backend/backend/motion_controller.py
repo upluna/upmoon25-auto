@@ -34,6 +34,8 @@ class State(Enum):
     Handles controlling the autonomous motion of the robot. Provides a service, GoTo,
     which delivers the robot to the target destination. 
 
+    NOTE: This is not tested irl!! Works well in simulator though
+    
     Subscriptions:
     /path/path: Path, path to the goal provided by path_planner. Dynamically re-plans
                       based on updated map information.

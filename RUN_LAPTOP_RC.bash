@@ -10,7 +10,7 @@ if [ "$1" = "record" ]; then
     ros2 bag record /odom /camera /depth /points &
 fi
 
-gnome-terminal -- bash -c "ros2 run frontend js_driver;" 
+gnome-terminal -- bash -c "ros2 run backend joystick_driver;" 
 
 # Wait for nodes to finish
 wait

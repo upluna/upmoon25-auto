@@ -45,6 +45,29 @@ BUCKET_INCREMENTAL_LOWER = 2 #TODO
 IR_THRESHOLD = 400 #<-Real Value = 400
 BUCKET_SLOW_SPEED = 30
 
+'''
+    This node controls autonomous mining. You might want to gut this and rebuild it
+    for 2026. It was scrapped together in a few hours. 
+
+    The user first marks a position for the robot to start at, which it will use as its digging position,
+    with 'recinit'. Then, the user marks a position for the robot to dump its load with 'recdump <distance>'.
+    Upon receiving the 'start' command, the robot will drive to the initial position, lower its bucket,
+    and begin digging. After some time, it will raise the bucket and drive to the dump position, dump, and repeat.
+
+    Subscriptions:
+    /cmd/miner - PoseStamped, command to execute. See main_controller for detailed command info
+    /sensor/ir - Int16, IR distance sensor reading
+    /sensor/bucket_alarm - Int16, bucket chain alarm reading, 1 if alarm is on, 0 if off
+    /camera/rgb/tag_pose - PoseStamped, pose of the tag in the camera frame, used to determine position of the robot
+    /odom - Odometry, used to determine the robot's position and orientation in the world
+
+    Publishes:
+    /miner_marker - Marker, used to visualize markers in Rviz for lining up the robot
+    /cmd/velocity - Twist, linear.x for forward/backward speed, angular.z for rotation speed
+    /cmd/conveyor - Int16, 1 to turn on the conveyor, 0 to turn off
+    /cmd/bucket_vel - Int16, speed of the bucket chain
+    /cmd/bucket_pos - Int16, position of the bucket chain, 0 for fully raised, 100 for fully lowered
+'''
 class MiningController(Node):
 
     def __init__(self):

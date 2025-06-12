@@ -14,3 +14,7 @@
 build
 install
 log
+
+src/sensor/build
+
+rosbag*

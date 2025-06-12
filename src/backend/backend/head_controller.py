@@ -51,13 +51,17 @@ class ServoCMD(Enum):
     arduino_driver, which actually talks to the hardware. This node offers a service which
     automatically looks for an AprilTag and publishes the resulting pose estimate.
 
+    Parameters:
+    use_sim_data: bool, if True, uses simulated data for the tag size and camera info. If False, uses real data.
+                        Also uses a different publisher, since the servo plugin in Gazebo subscribes to a different message type.
+
     Subscriptions:
     /camera/rgb/image_raw:   Image, RGB images from the camera on the camera head
     /camera/rgb/camera_info: CameraInfo, info about the camera which is necessary for pose calculations
 
     Publishes:
     /cmd_servo:     String, this is for the simulated servo
-    TODO: /cmd/pan: Int8, for real servo
+    /cmd/pan: Int8, for real servo
 
     Services:
     FindTag: Given a timeout, searches for AprilTag and returns pose of tag.

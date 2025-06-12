@@ -17,6 +17,20 @@ DEPTH_SN = '018322071045'
 DEPTH_FREQUENCY = 0.5
 DEPTH_FREQUENCY = 0.5
 
+'''
+    This node handles the depth camera which is fixed to the front of the robot. It filters and then
+    publishes the point cloud data.
+
+    Parameters:
+    demand_publish: bool, if True, the node will only publish when it receives a command on /cmd/pointcloud
+
+    Subscriptions:
+    /cmd/pointcloud - Int8, if 1, the node will publish the point cloud data, if 0, it will not publish. Will
+                            only be used if demand_publish is True. 
+
+    Publishes:
+    /camera/depth/points - PointCloud2, the point cloud data from the depth camera
+'''
 class DepthDriver(Node):
 
     def __init__(self):

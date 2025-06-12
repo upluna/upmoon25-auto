@@ -3,6 +3,14 @@ from rclpy.node import Node
 import Jetson.GPIO as GPIO
 from std_msgs.msg import Int16
 
+'''
+    The purpose of this node is to determine when the bucket chain gets stuck by monitoring the
+    bucket alarm GPIO pin. We made this during our competition and didn't really get to test it,
+    but it may be worth looking into.
+
+    Publishes:
+    /sensor/bucket_alarm - Int16, 0 means the alarm is off, 1 means the alarm is on
+'''''
 class BucketAlarm(Node):
     def __init__(self):
         super().__init__('bucket_alarm')

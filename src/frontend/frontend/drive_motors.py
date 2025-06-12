@@ -20,6 +20,14 @@ import time
 from serial import SerialException
 from pysabertooth import Sabertooth
 
+'''
+    This node controls the driving of the robot via two Sabertooth motor controllers.
+    You may run into issues with the ports, so make sure to verify that the USB ports
+    the Sabertooth controllers are connected to are correct.
+
+    Subscriptions:
+    /cmd/velocity - Twist, linear.x for forward/backward speed, angular.z for rotation speed
+'''
 class ReconnectableSaber:
     def __init__(self, port="/dev/ttyUSB0", baudrate=9600, address=128, timeout=0.1):
         self.port = port

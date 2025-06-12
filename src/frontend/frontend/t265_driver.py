@@ -18,6 +18,13 @@ X_OFFSET = 0.35      # How far forward the camera is from the base
 Z_OFFSET = 0.0     # How far up the camera is from the base
 ROBOT_HEIGHT = 0.22 # How far the base_link is from the ground
 
+'''
+    Publishes the T265 pose data as an Odometry message and TF transform. 
+
+    Publishes:
+    /odom - Odometry, the pose and velocity of the robot in the odom frame
+    odom -> base_link transform - the transform from the odom frame to the base_link frame
+'''
 class T265Driver(Node):
 
     def __init__(self):

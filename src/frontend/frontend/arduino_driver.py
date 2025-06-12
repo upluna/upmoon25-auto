@@ -26,7 +26,7 @@ from sensor_msgs.msg import JointState
     /cmd/bucket_pos:    Int16, 0 - 100 extension percentage for the bucket
 
     Publishes:
-    /sensor/ir/right - IR distance measure in centimeters
+    /sensor/ir/right - Raw IR measurement from sensor
     /sensor/ir/left
 
     TF transforms:

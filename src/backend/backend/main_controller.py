@@ -9,7 +9,23 @@ from geometry_msgs.msg import Pose, Quaternion, PoseStamped, Point
 
 
 '''
-    The main controller for the entire autonomous system.
+    The main controller for the entire autonomous system. It is implemented as
+    a command line interface. Right now (6/11/2025) it is only capable of semi-autonomous 
+    operation, which can be achieved by executing commands. See code below as an example if you
+    want to implement your own commands.
+
+    Commands:
+    - pc: Requests a pointcloud from the depth_driver. The depth_driver's 'demand_publish' parameter must be set to True.
+    - findtag: Calls the find_tag service, which will search for a tag in the image feed and return its ID.
+    - miner: Controls the miner. Takes 1 argument, which is the command to send to the miner:
+        - mark <distance>: Places a marker at the given distance (meters) from the robot in Rviz.
+        - recdump <distance>: Records a dump position at the given distance (meters)
+        - recinit: Records the dump position
+        - start: Begin mining run
+        - abort: Abort the mining run
+    - goto <x> <y> <yaw>: Sends a GoTo request to the robot to move to the given coordinates (x, y) and yaw (radians).
+    - map <0 or 1>: Turns the mapping on or off. If 1, the robot will start mapping. If 0, it will stop mapping.
+    - localize: This sucks, don't use it :(
 '''
 
 class Command():

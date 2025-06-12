@@ -5,6 +5,16 @@ import numpy as np
 import cv2
 from cv_bridge import CvBridge
 
+'''
+    This node decompresses images published from the Jetson (or anywhere really) and republishes them.
+    This significantly improves the framerate on the video feed from the RGB camera in Rviz.
+
+    Subscriptions:
+    /camera/rgb/image_compressed - CompressedImage, the compressed RGB image from the camera
+
+    Publishes:
+    /camera/rgb/image_decompressed - Image, the decompressed RGB image for viewing
+'''
 class RGBTransport(Node):
     def __init__(self):
         super().__init__('rgb_transport')

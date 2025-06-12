@@ -9,9 +9,9 @@ setup(
     version='0.0.0',
     packages=[package_name],
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + package_name]),
+        ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/description', glob('description/*')),
         (os.path.join('share', package_name), glob('launch/*launch.[pxy][yma]*'))
     ],
     install_requires=['setuptools'],
@@ -37,7 +37,11 @@ setup(
             'test_path_replanning = backend.test_path_replanning:main',
             'localizer = backend.localizer:main',
             'test_localizer = backend.test_localizer:main',
-            'mining_controller = backend.mining_controller:main'
+            'mining_controller = backend.mining_controller:main',
+            'tag_detector = backend.tag_detector:main',
+            'rgb_transport = backend.rgb_transport:main',
+            'joystick_driver = backend.joystick_driver:main',
+            'keyboard_driver_comp = backend.keyboard_driver_comp:main',
         ],
     },
 )
