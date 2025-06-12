@@ -5,6 +5,7 @@
   <version>0.0.0</version>
   <description>Nodes for interacting with the hardware on the robot</description>
   <maintainer email="woodsm25@up.edu">Max</maintainer>
+  <maintainer email="cameron24@up.edu">Riley</maintainer>
   <license>Apache-2.0</license>
 
   <exec_depend>rclpy</exec_depend>
